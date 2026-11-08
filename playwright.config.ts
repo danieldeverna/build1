@@ -12,7 +12,7 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["iPhone 13"] } },
+    { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium" } },
   ],
   webServer: {
     command: "APP_URL=http://127.0.0.1:3000 DEV_AUTH_BYPASS=true AUTH_SECRET=jarvis-e2e-only npm run dev -- --hostname 127.0.0.1",
