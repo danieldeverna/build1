@@ -1,0 +1,37 @@
+# dependencies
+/node_modules
+/node_modules.dataless
+.git.offloaded-*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# local environment
+.env
+.env.local
+.env.*.local
+
+# test output
+/coverage
+/playwright-report
+/test-results
+
+# database/local state
+/.pglite
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+pnpm-debug.log*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
