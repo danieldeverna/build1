@@ -19,7 +19,7 @@ describe("calendar positioning", () => {
   });
 
   it("maps current time to the same coordinate system", () => {
-    const now = new Date(2026, 10, 7, 12, 30);
+    const now = new Date("2026-11-07T12:30:00-05:00");
     expect(getCurrentTimeOffset(now, 7, 60)).toBe(330);
   });
 

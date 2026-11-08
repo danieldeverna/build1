@@ -1,3 +1,5 @@
+import { toZonedTime } from "date-fns-tz";
+
 export type CalendarSource = "google" | "jarvis" | "canvas";
 
 export type CalendarEvent = {
@@ -20,9 +22,10 @@ export function positionDayEvent(
   event: CalendarEvent,
   dayStartHour = 7,
   pixelsPerHour = 76,
+  timeZone = "America/New_York",
 ): PositionedEvent {
-  const start = new Date(event.start);
-  const end = new Date(event.end);
+  const start = toZonedTime(new Date(event.start), timeZone);
+  const end = toZonedTime(new Date(event.end), timeZone);
   const startMinutes = start.getHours() * 60 + start.getMinutes();
   const endMinutes = end.getHours() * 60 + end.getMinutes();
   const visibleStart = dayStartHour * 60;
@@ -34,8 +37,10 @@ export function positionDayEvent(
   };
 }
 
-export function eventOccursOn(event: CalendarEvent, date: Date) {
-  const start = new Date(event.start);
+export function eventOccursOn(event: CalendarEvent, date: Date, timeZone = "America/New_York") {
+  const start = event.allDay
+    ? new Date(`${event.start.slice(0, 10)}T12:00:00`)
+    : toZonedTime(new Date(event.start), timeZone);
   return (
     start.getFullYear() === date.getFullYear() &&
     start.getMonth() === date.getMonth() &&
@@ -47,7 +52,9 @@ export function getCurrentTimeOffset(
   now: Date,
   dayStartHour = 7,
   pixelsPerHour = 76,
+  timeZone = "America/New_York",
 ) {
-  const minutes = now.getHours() * 60 + now.getMinutes() - dayStartHour * 60;
+  const zonedNow = toZonedTime(now, timeZone);
+  const minutes = zonedNow.getHours() * 60 + zonedNow.getMinutes() - dayStartHour * 60;
   return (minutes / 60) * pixelsPerHour;
 }
