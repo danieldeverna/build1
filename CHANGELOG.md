@@ -2,6 +2,17 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.1.0.1] - 2026-11-08
+
+### Changed
+
+- Fit the complete desktop command center into a 1440×900 viewport by turning the top area into three balanced tiles and reducing spacing throughout the dashboard.
+- Condensed the Daily agenda timeline so it occupies less width and height while retaining scrollable access to the full day.
+
+### Fixed
+
+- Added a browser regression check that prevents dashboard tiles from falling below the desktop fold.
+
 ## [0.1.0.0] - 2026-11-08
 
 ### Added

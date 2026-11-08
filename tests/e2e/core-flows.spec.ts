@@ -9,6 +9,15 @@ test("dashboard and calendar navigation", async ({ page }) => {
   await expect(page.getByText("Mon", { exact: true })).toBeVisible();
 });
 
+test("desktop dashboard keeps every tile above the fold", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/dashboard");
+  await expect(page.getByRole("link", { name: /Calendar Your week/ })).toBeVisible();
+
+  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  expect(pageHeight).toBeLessThanOrEqual(900);
+});
+
 test("task creation and category filtering", async ({ page }) => {
   await page.goto("/work");
   await page.getByRole("button", { name: "Add task" }).click();
