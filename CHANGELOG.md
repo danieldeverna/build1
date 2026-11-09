@@ -2,6 +2,19 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.3.0.0] - 2026-11-09
+
+### Added
+
+- Added live Georgetown, D.C. conditions from Open-Meteo with a 15-minute server cache and a provider-outage state.
+- Added a 12-hour forecast with temperature, apparent temperature, precipitation probability, and UV index.
+- Added a seven-day forecast plus current humidity, UV risk, wind, gusts, pressure, cloud cover, sunrise, and sunset details.
+- Added weather-domain and browser coverage for condition mapping, provider response transformation, and responsive forecast rendering.
+
+### Changed
+
+- Updated the dashboard and settings weather location from Washington, D.C. to Georgetown, D.C.
+
 ## [0.2.0.0] - 2026-11-09
 
 ### Added
