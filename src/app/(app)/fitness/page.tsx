@@ -1,1 +1,9 @@
-import { Dumbbell } from "lucide-react";import { ModulePlaceholder } from "@/components/module-placeholder";export const metadata={title:"Fitness"};export default function Page(){return <ModulePlaceholder eyebrow="Personal" title="Fitness" description="A simple home for manually planned movement and recovery." icon={Dumbbell} accentClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300" emptyTitle="Nothing planned today" emptyDescription="Fitness-device sync is intentionally outside this release."/>}
+import { FitnessWorkspace } from "@/components/fitness/fitness-workspace";
+import { PageHeader } from "@/components/page-header";
+import { getMockFitnessPlan } from "@/lib/mock-data";
+
+export const metadata = { title: "Fitness" };
+
+export default function Page() {
+  return <><PageHeader eyebrow="Personal training" title="Fitness planner" description="Three protected lifts, intelligently fitted around your week."/><FitnessWorkspace initialPlan={getMockFitnessPlan()}/></>;
+}
