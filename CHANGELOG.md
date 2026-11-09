@@ -2,6 +2,24 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.2.0.0] - 2026-11-09
+
+### Added
+
+- Added an adaptive fitness workspace with a four-week intermediate return-to-consistency program, weekly workout cards, exercise prescriptions, and completion or skip controls.
+- Added a deterministic scheduler that protects three weekly lifts, offers a fourth only when capacity exists, chooses 60- or 75-minute variants, and respects conflicts, recovery spacing, travel time, and evening curfews.
+- Added Jarvis-owned workout events to the preview calendar plus persistence models for fitness profiles, programs, templates, planned workouts, and scheduling decisions.
+- Added unit and desktop/mobile browser coverage for fitness scheduling and planner interactions.
+
+### Changed
+
+- Made the dashboard greeting adapt to the current time of day with wider letter spacing.
+- Made the daily agenda open near the current time and report the live number of events scheduled today.
+
+### Deferred
+
+- Live Google Calendar writes, Canvas workload-based deferrals, and Hevy progression data remain behind their future connection and permission flows.
+
 ## [0.1.0.1] - 2026-11-08
 
 ### Changed
