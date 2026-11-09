@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import { isLocalPreviewConfigured } from "@/lib/local-preview";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET || (isLocalPreviewConfigured() ? "jarvis-local-preview-session-secret" : undefined),
   providers: [Google({ authorization: { params: { scope: "openid email profile" } } })],
   pages: { signIn: "/sign-in" },
   session: { strategy: "jwt" },

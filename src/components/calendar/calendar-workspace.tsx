@@ -4,6 +4,7 @@ import {
   CalendarPlus,
   ChevronLeft,
   ChevronRight,
+  Cloud,
   CloudOff,
   MapPin,
   Plus,
@@ -24,7 +25,7 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DayAgenda } from "@/components/dashboard/day-agenda";
 import { eventOccursOn, positionDayEvent, type CalendarEvent } from "@/domain/calendar";
 import { cn } from "@/lib/cn";
@@ -43,11 +44,34 @@ const colorStyles = {
   slate: "border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
 };
 
-export function CalendarWorkspace({ initialEvents, initialNew = false }: { initialEvents: CalendarEvent[]; initialNew?: boolean }) {
+export function CalendarWorkspace({ initialEvents, initialNew = false, googleCalendarConnected = false }: { initialEvents: CalendarEvent[]; initialNew?: boolean; googleCalendarConnected?: boolean }) {
   const [view, setView] = useState<CalendarView>("week");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState(initialEvents);
   const [draftOpen, setDraftOpen] = useState(initialNew);
+  const [syncState, setSyncState] = useState<"preview" | "syncing" | "live" | "error">(googleCalendarConnected ? "syncing" : "preview");
+  const [syncMessage, setSyncMessage] = useState(googleCalendarConnected ? "Syncing your Google Calendar…" : "Preview mode · Google Calendar is not connected. Drafts stay local.");
+
+  useEffect(() => {
+    if (!googleCalendarConnected) return;
+    const controller = new AbortController();
+    const timeMin = addDays(new Date(), -90).toISOString();
+    const timeMax = addDays(new Date(), 365).toISOString();
+    fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, { signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json() as { events?: CalendarEvent[]; error?: string };
+        if (!response.ok || !result.events) throw new Error(result.error || "Calendar sync failed");
+        setEvents(result.events);
+        setSyncState("live");
+        setSyncMessage(`Live Google Calendar · ${result.events.length} events synced.`);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSyncState("error");
+        setSyncMessage(error instanceof Error ? error.message : "Calendar sync failed. Reconnect from Settings.");
+      });
+    return () => controller.abort();
+  }, [googleCalendarConnected]);
 
   const title = view === "month" ? format(selectedDate, "MMMM yyyy") : view === "week" ? `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), "MMM d")} – ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), "MMM d, yyyy")}` : format(selectedDate, "EEEE, MMMM d");
 
@@ -57,7 +81,7 @@ export function CalendarWorkspace({ initialEvents, initialNew = false }: { initi
     else setSelectedDate(addDays(selectedDate, direction));
   }
 
-  function addDraft(formData: FormData) {
+  async function addDraft(formData: FormData) {
     const title = String(formData.get("title") ?? "").trim();
     const start = String(formData.get("start") ?? "");
     const end = String(formData.get("end") ?? "");
@@ -65,9 +89,7 @@ export function CalendarWorkspace({ initialEvents, initialNew = false }: { initi
     const startDate = new Date(start);
     const endDate = new Date(end);
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) return;
-    setEvents((current) => [
-      ...current,
-      {
+    const localEvent: CalendarEvent = {
         id: crypto.randomUUID(),
         title,
         start: startDate.toISOString(),
@@ -76,8 +98,27 @@ export function CalendarWorkspace({ initialEvents, initialNew = false }: { initi
         source: "jarvis",
         location: String(formData.get("location") ?? "") || undefined,
         color: "blue",
-      },
-    ]);
+      };
+    if (googleCalendarConnected) {
+      try {
+        const response = await fetch("/api/integrations/google-calendar/events", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ...localEvent, idempotencyKey: localEvent.id }),
+        });
+        const result = await response.json() as { event?: CalendarEvent; error?: string };
+        if (!response.ok || !result.event) throw new Error(result.error || "The event could not be published");
+        setEvents((current) => [...current, result.event!]);
+        setSyncState("live");
+        setSyncMessage("Live Google Calendar · Event published successfully.");
+      } catch (error) {
+        setEvents((current) => [...current, localEvent]);
+        setSyncState("error");
+        setSyncMessage(error instanceof Error ? `${error.message}. Saved locally instead.` : "Publishing failed. Saved locally instead.");
+      }
+    } else {
+      setEvents((current) => [...current, localEvent]);
+    }
     setDraftOpen(false);
   }
 
@@ -100,9 +141,9 @@ export function CalendarWorkspace({ initialEvents, initialNew = false }: { initi
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-        <CloudOff size={15} className="shrink-0" />
-        Preview mode · Google Calendar is not connected. Drafts stay local and cannot publish yet.
+      <div className={cn("mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs", syncState === "live" && "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200", syncState === "syncing" && "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-200", syncState === "error" && "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/60 dark:text-red-200", syncState === "preview" && "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/60 dark:text-amber-200")}>
+        {syncState === "preview" ? <CloudOff size={15} className="shrink-0" /> : <Cloud size={15} className="shrink-0" />}
+        {syncMessage}
       </div>
 
       <section className="card overflow-hidden">
@@ -177,7 +218,7 @@ function MonthView({ date, events, onSelectDate }: { date: Date; events: Calenda
   );
 }
 
-function DraftDialog({ selectedDate, onClose, onSubmit }: { selectedDate: Date; onClose: () => void; onSubmit: (formData: FormData) => void }) {
+function DraftDialog({ selectedDate, onClose, onSubmit }: { selectedDate: Date; onClose: () => void; onSubmit: (formData: FormData) => void | Promise<void> }) {
   const defaultStart = `${format(selectedDate, "yyyy-MM-dd")}T09:00`;
   const defaultEnd = `${format(selectedDate, "yyyy-MM-dd")}T10:00`;
   return (

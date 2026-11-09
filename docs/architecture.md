@@ -5,10 +5,10 @@ Jarvis is a single Next.js application. Server-rendered pages, authenticated rou
 ## Trust boundaries
 
 - Authentication proves access to the private workspace; Google Calendar authorization is a separate consent flow.
-- Google and Canvas tokens are encrypted with AES-256-GCM before database persistence.
+- Google tokens are encrypted with AES-256-GCM in an HttpOnly, SameSite cookie for the local single-user build. Production deployment will move the same encrypted credential payload to PostgreSQL.
 - Provider modules are server-only and return normalized domain records to the rest of the application.
 - Imported events and assignments are immutable through Jarvis. The Google adapter will expose list and insert operations, never update or delete operations.
-- New calendar items enter the `draft` state. Publishing claims the draft with a transaction, uses a stable provider event ID, then records the returned ID and activity entry. A retry reconciles the same external event.
+- Disconnected calendar items remain local drafts. When connected, explicit publishing uses a stable Jarvis idempotency key and tags the provider event as Jarvis-owned. The adapter never exposes update or delete operations.
 
 ## Data flow
 
@@ -20,7 +20,7 @@ Browser → protected Next.js route → domain service → repository → Postgr
                          Google    Canvas    Weather
 ```
 
-The current preview uses deterministic mock adapters. Live adapters can replace them without changing dashboard, calendar, or work components.
+The calendar uses the live Google adapter when its encrypted connection cookie is present and deterministic preview data otherwise. Canvas remains a mock boundary.
 
 ## Rendering strategy
 

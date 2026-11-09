@@ -1,6 +1,6 @@
 import type { CalendarEvent } from "@/domain/calendar";
 
-type GoogleEvent = {
+export type GoogleEvent = {
   id?: string | null;
   summary?: string | null;
   location?: string | null;
