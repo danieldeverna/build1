@@ -41,3 +41,15 @@ test("fitness planner presents and tracks the adaptive week", async ({ page }) =
   await page.getByRole("button", { name: "Too much academic work" }).click();
   await expect(page.getByRole("dialog", { name: "Why are you skipping?" })).toBeHidden();
 });
+
+test("weather page presents the Georgetown live forecast", async ({ page }) => {
+  await page.goto("/weather");
+  await expect(page.getByRole("heading", { name: "Georgetown, D.C." })).toBeVisible();
+  const liveForecast = page.getByText(/Live · updated/);
+  const outageState = page.getByRole("heading", { name: "Live weather is temporarily unavailable" });
+  await expect(liveForecast.or(outageState)).toBeVisible();
+  if (await liveForecast.isVisible()) {
+    await expect(page.getByRole("heading", { name: "Throughout the day" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "The week ahead" })).toBeVisible();
+  }
+});

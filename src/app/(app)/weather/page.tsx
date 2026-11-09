@@ -1,1 +1,16 @@
-import { CloudSun,MapPin } from "lucide-react";import { PageHeader } from "@/components/page-header";export const metadata={title:"Weather"};export default function Page(){return <><PageHeader eyebrow="Conditions" title="Washington, D.C." description="A concise view of today’s weather. Preview values are shown until live weather is enabled."/><section className="card relative min-h-96 overflow-hidden bg-gradient-to-br from-sky-500 to-blue-700 p-7 text-white sm:p-9"><div className="relative flex items-start justify-between"><div><p className="flex items-center gap-2 text-sm text-blue-100"><MapPin size={15}/>Washington, D.C.</p><p className="mt-10 text-7xl font-light tracking-[-.08em]">63°</p><p className="mt-2 text-lg font-medium">Partly cloudy</p><p className="mt-1 text-sm text-blue-100">H 68° · L 51° · Rain 12%</p></div><CloudSun size={74} strokeWidth={1.1}/></div></section></>}
+import { CloudOff } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { WeatherDashboard } from "@/components/weather/weather-dashboard";
+import { getGeorgetownWeather } from "@/integrations/open-meteo";
+
+export const metadata = { title: "Weather" };
+export const revalidate = 900;
+
+export default async function WeatherPage() {
+  const forecast = await getGeorgetownWeather().catch(() => null);
+
+  return <>
+    <PageHeader eyebrow="Live conditions" title="Georgetown, D.C." description="Current conditions, the day ahead, and a seven-day outlook for Georgetown."/>
+    {forecast ? <WeatherDashboard forecast={forecast}/> : <section className="card grid min-h-80 place-items-center p-8 text-center"><div><CloudOff className="mx-auto text-[var(--muted)]" size={34}/><h2 className="mt-4 text-lg font-bold">Live weather is temporarily unavailable</h2><p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">The weather provider did not respond. Jarvis will try again automatically; no stale forecast is being presented as live data.</p></div></section>}
+  </>;
+}

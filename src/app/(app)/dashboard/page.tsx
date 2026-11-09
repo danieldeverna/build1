@@ -90,7 +90,7 @@ export default function DashboardPage() {
       </div>
 
       <section className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DashboardTile href="/weather" icon={<CloudSun size={19} />} iconClass="bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300" title="Washington, D.C." eyebrow="Weather">
+        <DashboardTile href="/weather" icon={<CloudSun size={19} />} iconClass="bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-300" title="Georgetown, D.C." eyebrow="Weather">
           <div className="mt-5 flex items-end justify-between"><p className="text-4xl font-semibold tracking-[-0.06em]">63°</p><div className="text-right text-xs leading-5 text-[var(--muted)]"><p>H 68° · L 51°</p><p>Partly cloudy</p></div></div>
         </DashboardTile>
         <DashboardTile href="/health" icon={<HeartPulse size={19} />} iconClass="bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-300" title="Health" eyebrow="Daily check-in">
