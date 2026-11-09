@@ -2,6 +2,20 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.4.0.0] - 2026-11-09
+
+### Added
+
+- Connect a Google account from Settings and replace calendar preview data with live Google Calendar events.
+- Publish explicitly created Jarvis events to Google Calendar with automatic duplicate protection.
+- Refresh expired Google access automatically and disconnect by revoking Google access and removing local credentials.
+- Added tests for OAuth permissions, configuration validation, Calendar API pagination and publishing, and live calendar rendering.
+
+### Changed
+
+- Encrypt Google credentials in a secure HttpOnly cookie for the local single-user build and restrict provider writes to Jarvis-created events.
+- Validate OAuth state, account identity, callback configuration, sync windows, and event fields before sending data to Google.
+
 ## [0.3.0.0] - 2026-11-09
 
 ### Added
