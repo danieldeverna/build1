@@ -2,6 +2,19 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.6.0.0] - 2026-11-10
+
+### Added
+
+- Added a dedicated Gmail OAuth connection in Settings with encrypted credentials, refresh support, account validation, and disconnect/revocation handling.
+- Added a read-only Gmail adapter and protected message-list and message-read endpoints for future private briefing features.
+- Added a recent-mail preview after Gmail connection and setup documentation for the Gmail API and OAuth redirect URI.
+
+### Security
+
+- Requested only Gmail's `gmail.readonly` scope. Jarvis contains no send, archive, trash, delete, draft, or other email-modifying route.
+- Added tests asserting the Gmail OAuth scope and that the Gmail adapter makes read-only requests.
+
 ## [0.5.0.0] - 2026-11-09
 
 ### Added
