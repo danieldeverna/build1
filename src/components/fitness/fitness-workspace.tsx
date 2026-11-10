@@ -2,48 +2,26 @@
 
 import { CalendarCheck2, Check, Clock3, Database, Dumbbell, ShieldCheck, Sparkles, Target, TrendingUp, X } from "lucide-react";
 import { format, startOfWeek } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useCalendarData } from "@/components/calendar/calendar-data-provider";
 import { plannedWorkoutToCalendarEvent, workoutTemplates, type PlannedWorkout } from "@/domain/fitness";
 import { cn } from "@/lib/cn";
-import { reconcileFitnessCalendar } from "@/lib/fitness-calendar-sync";
 
-export function FitnessWorkspace({ initialPlan, googleCalendarConnected = false }: { initialPlan: PlannedWorkout[]; googleCalendarConnected?: boolean }) {
-  const [plan, setPlan] = useState(initialPlan);
+export function FitnessWorkspace({ initialPlan }: { initialPlan: PlannedWorkout[] }) {
+  const { events: calendarEvents, fitnessPlan } = useCalendarData();
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, Pick<PlannedWorkout, "status" | "reason">>>({});
   const [skipId, setSkipId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewEvents, setPreviewEvents] = useState(() => initialPlan.map(plannedWorkoutToCalendarEvent));
+  const plan = useMemo(() => (fitnessPlan ?? initialPlan).map((workout) => ({ ...workout, ...statusOverrides[workout.id] })), [fitnessPlan, initialPlan, statusOverrides]);
+  const previewEvents = calendarEvents.length > 0 ? calendarEvents : initialPlan.map(plannedWorkoutToCalendarEvent);
   const nextWorkout = useMemo(() => plan.find((item) => item.status === "scheduled" && item.protected) ?? plan.find((item) => item.status === "scheduled"), [plan]);
   const completed = plan.filter((item) => item.status === "completed").length;
 
   function updateStatus(id: string, status: PlannedWorkout["status"], reason?: string) {
-    setPlan((current) => current.map((item) => item.id === id ? { ...item, status, reason: reason ?? item.reason } : item));
+    const current = plan.find((item) => item.id === id);
+    if (current) setStatusOverrides((overrides) => ({ ...overrides, [id]: { status, reason: reason ?? current.reason } }));
     setSkipId(null);
   }
-
-  useEffect(() => {
-    if (!googleCalendarConnected) return;
-    let active = true;
-    const sync = async () => {
-      try {
-        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-        const timeMin = weekStart.toISOString();
-        const timeMax = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        const response = await fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
-        const result = await response.json() as { events?: import("@/domain/calendar").CalendarEvent[] };
-        if (!response.ok || !result.events || !active) return;
-        const reconciliation = reconcileFitnessCalendar(result.events);
-        if (active) {
-          setPlan(reconciliation.plan);
-          setPreviewEvents(reconciliation.events);
-        }
-      } catch {
-        // The visible preview plan remains available while Google is unavailable.
-      }
-    };
-    void sync();
-    const interval = window.setInterval(() => void sync(), 5 * 60 * 1000);
-    return () => { active = false; window.clearInterval(interval); };
-  }, [googleCalendarConnected]);
 
   return <div className="space-y-5">
     <section className="overflow-hidden rounded-[1.25rem] border border-emerald-900 bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 p-6 text-white shadow-[var(--shadow)] sm:p-7">

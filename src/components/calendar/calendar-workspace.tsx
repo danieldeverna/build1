@@ -26,12 +26,13 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
-import { useEffect, useMemo, useState } from "react";
+import { useRef, useState } from "react";
+import { useCalendarData } from "@/components/calendar/calendar-data-provider";
 import { DayAgenda } from "@/components/dashboard/day-agenda";
-import { eventOccursOn, positionDayEvent, type CalendarEvent } from "@/domain/calendar";
+import { eventOccursOn, getCurrentTimeOffset, positionDayEvent, type CalendarEvent } from "@/domain/calendar";
+import { useCurrentTime, useInitialTimeScroll } from "@/hooks/use-current-time";
 import { cn } from "@/lib/cn";
-import { addLocalEvent, deleteEventFromOverlay, mergeCalendarEvents, readCalendarOverlay, saveCalendarOverlay, saveEventToOverlay, type CalendarOverlay } from "@/lib/calendar-overlay";
-import { reconcileFitnessCalendar } from "@/lib/fitness-calendar-sync";
+import { addLocalEvent, deleteEventFromOverlay, saveEventToOverlay } from "@/lib/calendar-overlay";
 
 type CalendarView = "day" | "week" | "month";
 const views: CalendarView[] = ["day", "week", "month"];
@@ -47,44 +48,13 @@ const colorStyles = {
   slate: "border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
 };
 
-export function CalendarWorkspace({ initialEvents, initialNew = false, googleCalendarConnected = false }: { initialEvents: CalendarEvent[]; initialNew?: boolean; googleCalendarConnected?: boolean }) {
+export function CalendarWorkspace({ initialNew = false }: { initialNew?: boolean }) {
   const [view, setView] = useState<CalendarView>("week");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [providerEvents, setProviderEvents] = useState(initialEvents);
-  const [overlay, setOverlay] = useState<CalendarOverlay>(() => readCalendarOverlay());
-  const events = useMemo(() => mergeCalendarEvents(providerEvents, overlay), [overlay, providerEvents]);
+  const { events, overlay, saveOverlay, syncMessage, syncState } = useCalendarData();
   const [draftOpen, setDraftOpen] = useState(initialNew);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [syncState, setSyncState] = useState<"preview" | "syncing" | "live" | "error">(googleCalendarConnected ? "syncing" : "preview");
-  const [syncMessage, setSyncMessage] = useState(googleCalendarConnected ? "Syncing your Google Calendar…" : "Preview mode · Google Calendar is not connected. Drafts stay local.");
-
-  useEffect(() => {
-    if (!googleCalendarConnected) return;
-    const controller = new AbortController();
-    const timeMin = addDays(new Date(), -90).toISOString();
-    const timeMax = addDays(new Date(), 365).toISOString();
-    fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, { signal: controller.signal })
-      .then(async (response) => {
-        const result = await response.json() as { events?: CalendarEvent[]; error?: string };
-        if (!response.ok || !result.events) throw new Error(result.error || "Calendar sync failed");
-        const reconciliation = reconcileFitnessCalendar(result.events);
-        setProviderEvents(result.events);
-        setOverlay(reconciliation.overlay);
-        setSyncState("live");
-        setSyncMessage(`Live Google Calendar · ${result.events.length} events synced.`);
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setSyncState("error");
-        setSyncMessage(error instanceof Error ? error.message : "Calendar sync failed. Reconnect from Settings.");
-      });
-    return () => controller.abort();
-  }, [googleCalendarConnected]);
-
-  function saveOverlay(next: CalendarOverlay) {
-    setOverlay(next);
-    saveCalendarOverlay(next);
-  }
+  const suppressSelectionRef = useRef(false);
 
   const title = view === "month" ? format(selectedDate, "MMMM yyyy") : view === "week" ? `${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), "MMM d")} – ${format(endOfWeek(selectedDate, { weekStartsOn: 1 }), "MMM d, yyyy")}` : format(selectedDate, "EEEE, MMMM d");
 
@@ -113,12 +83,15 @@ export function CalendarWorkspace({ initialEvents, initialNew = false, googleCal
         color: "blue",
       };
     saveOverlay(addLocalEvent(localEvent, overlay));
-    setSyncMessage(googleCalendarConnected ? "Live Google Calendar · Changes stay in Jarvis and never write back to Google." : "Preview mode · Changes stay in Jarvis on this device.");
     setDraftOpen(false);
   }
 
-  function updateEvent(nextEvent: CalendarEvent) {
+  function persistEvent(nextEvent: CalendarEvent) {
     saveOverlay(saveEventToOverlay(nextEvent, overlay));
+  }
+
+  function updateEvent(nextEvent: CalendarEvent) {
+    persistEvent(nextEvent);
     setSelectedEvent(nextEvent);
   }
 
@@ -128,13 +101,15 @@ export function CalendarWorkspace({ initialEvents, initialNew = false, googleCal
   }
 
   function moveEvent(event: CalendarEvent, targetDay: Date) {
+    suppressSelectionRef.current = true;
+    window.setTimeout(() => { suppressSelectionRef.current = false; }, 300);
     if (event.allDay) {
       const startDate = new Date(`${event.start.slice(0, 10)}T12:00:00`);
       const endDate = new Date(`${event.end.slice(0, 10)}T12:00:00`);
       const durationDays = Math.max(1, differenceInCalendarDays(endDate, startDate));
       const nextStartDate = format(targetDay, "yyyy-MM-dd");
       const nextEndDate = format(addDays(targetDay, durationDays), "yyyy-MM-dd");
-      updateEvent({ ...event, start: `${nextStartDate}T00:00:00.000Z`, end: `${nextEndDate}T00:00:00.000Z` });
+      persistEvent({ ...event, start: `${nextStartDate}T00:00:00.000Z`, end: `${nextEndDate}T00:00:00.000Z` });
       return;
     }
     const start = new Date(event.start);
@@ -143,7 +118,12 @@ export function CalendarWorkspace({ initialEvents, initialNew = false, googleCal
     const nextStart = new Date(targetDay);
     nextStart.setHours(start.getHours(), start.getMinutes(), 0, 0);
     const next = { ...event, start: nextStart.toISOString(), end: new Date(nextStart.getTime() + duration).toISOString() };
-    updateEvent(next);
+    persistEvent(next);
+  }
+
+  function selectEvent(event: CalendarEvent) {
+    if (suppressSelectionRef.current) return;
+    setSelectedEvent(event);
   }
 
   return (
@@ -172,8 +152,8 @@ export function CalendarWorkspace({ initialEvents, initialNew = false, googleCal
 
       <section className="card overflow-hidden">
         {view === "day" && <div className="p-3 sm:p-5"><DayAgenda events={events} date={selectedDate} onEventClick={setSelectedEvent} /></div>}
-        {view === "week" && <WeekView date={selectedDate} events={events} onSelectDate={(date) => { setSelectedDate(date); setView("day"); }} onSelectEvent={setSelectedEvent} onMoveEvent={moveEvent} />}
-        {view === "month" && <MonthView date={selectedDate} events={events} onSelectDate={(date) => { setSelectedDate(date); setView("day"); }} onSelectEvent={setSelectedEvent} onMoveEvent={moveEvent} />}
+        {view === "week" && <WeekView date={selectedDate} events={events} onSelectDate={(date) => { setSelectedDate(date); setView("day"); }} onSelectEvent={selectEvent} onMoveEvent={moveEvent} />}
+        {view === "month" && <MonthView date={selectedDate} events={events} onSelectDate={(date) => { setSelectedDate(date); setView("day"); }} onSelectEvent={selectEvent} onMoveEvent={moveEvent} />}
       </section>
 
       {draftOpen && <DraftDialog selectedDate={selectedDate} onClose={() => setDraftOpen(false)} onSubmit={addDraft} />}
@@ -185,8 +165,13 @@ export function CalendarWorkspace({ initialEvents, initialNew = false, googleCal
 function WeekView({ date, events, onSelectDate, onSelectEvent, onMoveEvent }: { date: Date; events: CalendarEvent[]; onSelectDate: (date: Date) => void; onSelectEvent: (event: CalendarEvent) => void; onMoveEvent: (event: CalendarEvent, day: Date) => void }) {
   const days = eachDayOfInterval({ start: startOfWeek(date, { weekStartsOn: 1 }), end: endOfWeek(date, { weekStartsOn: 1 }) });
   const totalHeight = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
+  const now = useCurrentTime();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const showsToday = Boolean(now && days.some((day) => isSameDay(day, now)));
+  const currentOffset = now && showsToday ? getCurrentTimeOffset(now, START_HOUR, HOUR_HEIGHT) : -1;
+  useInitialTimeScroll(scrollRef, currentOffset + 88, showsToday ? format(days[0], "yyyy-MM-dd") : null);
   return (
-    <div className="overflow-auto">
+    <div ref={scrollRef} aria-label="Weekly calendar timeline" className="h-[36rem] overflow-auto lg:h-[calc(100vh-18rem)] lg:min-h-[36rem]">
       <div className="min-w-[58rem]">
         <div className="sticky top-0 z-10 grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b bg-[var(--surface)]">
           <div />
@@ -199,19 +184,20 @@ function WeekView({ date, events, onSelectDate, onSelectEvent, onMoveEvent }: { 
         </div>
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b bg-[var(--surface-subtle)]">
           <div className="px-2 py-2 text-[.6rem] font-bold uppercase tracking-wider text-[var(--muted)]">All day</div>
-          {days.map((day) => <div key={`all-day-${day.toISOString()}`} onDragOver={(event) => event.preventDefault()} onDrop={(dropEvent) => { const eventId = dropEvent.dataTransfer.getData("text/plain"); const calendarEvent = events.find((event) => event.id === eventId); if (calendarEvent) onMoveEvent(calendarEvent, day); }} className="min-h-10 border-l p-1">{events.filter((event) => event.allDay && eventOccursOn(event, day)).map((event) => <button draggable type="button" key={event.id} onDragStart={(dragEvent) => dragEvent.dataTransfer.setData("text/plain", event.id)} onClick={() => onSelectEvent(event)} className={cn("focus-ring w-full cursor-grab truncate rounded border px-1.5 py-1 text-left text-[.62rem] font-bold", colorStyles[event.color])}>{event.title}</button>)}</div>)}
+          {days.map((day) => <div key={`all-day-${day.toISOString()}`} aria-label={`${format(day, "EEEE, MMMM d")} all-day events`} onDragOver={(event) => event.preventDefault()} onDrop={(dropEvent) => { const eventId = dropEvent.dataTransfer.getData("text/plain"); const calendarEvent = events.find((event) => event.id === eventId); if (calendarEvent) onMoveEvent(calendarEvent, day); }} className="min-h-10 border-l p-1">{events.filter((event) => event.allDay && eventOccursOn(event, day)).map((event) => <button draggable type="button" key={event.id} onDragStart={(dragEvent) => dragEvent.dataTransfer.setData("text/plain", event.id)} onClick={() => onSelectEvent(event)} className={cn("focus-ring w-full cursor-grab truncate rounded border px-1.5 py-1 text-left text-[.62rem] font-bold", colorStyles[event.color])}>{event.title}</button>)}</div>)}
         </div>
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
           <div className="relative" style={{ height: totalHeight }}>
             {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => <span key={index} className="absolute right-2 -translate-y-1/2 text-[0.62rem] font-medium text-[var(--muted-2)]" style={{ top: index * HOUR_HEIGHT }}>{format(new Date(2026, 0, 1, START_HOUR + index), "h a")}</span>)}
           </div>
           {days.map((day) => (
-            <div key={day.toISOString()} onDragOver={(event) => event.preventDefault()} onDrop={(dropEvent) => { const eventId = dropEvent.dataTransfer.getData("text/plain"); const calendarEvent = events.find((event) => event.id === eventId); if (calendarEvent) onMoveEvent(calendarEvent, day); }} className="relative border-l" style={{ height: totalHeight }}>
+            <div key={day.toISOString()} aria-label={`${format(day, "EEEE, MMMM d")} timeline`} onDragOver={(event) => event.preventDefault()} onDrop={(dropEvent) => { const eventId = dropEvent.dataTransfer.getData("text/plain"); const calendarEvent = events.find((event) => event.id === eventId); if (calendarEvent) onMoveEvent(calendarEvent, day); }} className="relative border-l" style={{ height: totalHeight }}>
               {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => <div key={index} className="absolute inset-x-0 border-t" style={{ top: index * HOUR_HEIGHT }} />)}
               {events.filter((event) => !event.allDay && eventOccursOn(event, day)).map((event) => {
                 const positioned = positionDayEvent(event, START_HOUR, HOUR_HEIGHT);
                 return <button draggable type="button" onDragStart={(dragEvent) => dragEvent.dataTransfer.setData("text/plain", event.id)} onClick={() => onSelectEvent(event)} key={event.id} className={cn("focus-ring absolute inset-x-1 cursor-grab overflow-hidden rounded-lg border p-1.5 text-left text-[0.65rem] shadow-sm active:cursor-grabbing", colorStyles[event.color])} style={{ top: positioned.top + 2, height: Math.max(28, positioned.height - 4) }}><p className="truncate font-bold">{event.title}</p><p className="mt-0.5 truncate opacity-60">{format(new Date(event.start), "h:mm a")}</p></button>;
               })}
+              {now && isSameDay(day, now) && currentOffset >= 0 && currentOffset <= totalHeight && <div aria-label="Current time" className="pointer-events-none absolute inset-x-0 z-20 flex items-center" style={{ top: currentOffset }}><span className="size-2.5 -translate-x-1/2 rounded-full bg-rose-500"/><span className="h-px flex-1 bg-rose-500"/></div>}
             </div>
           ))}
         </div>

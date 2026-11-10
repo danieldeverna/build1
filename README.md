@@ -10,7 +10,7 @@ A private, single-user command-center web app for schedule, academic work, recru
 - Live Google Calendar connection with secure OAuth, automatic refresh, and read-only event sync
 - Read-only Gmail connection with a recent-mail preview and server-side message access for future briefings
 - Private Jarvis calendar overlays for event creation, edits, moves, and deletions
-- Work tabs with local task create, edit, complete, reopen, and delete interactions
+- Persistent Work tabs with task create, edit, complete, reopen, and archive interactions plus private lifecycle logs
 - Dedicated Health, Fitness, Weather, and Settings pages
 - Google Calendar, Canvas, and Weather adapter boundaries
 - PostgreSQL schema for settings, connections, imported data, tasks, drafts, and activity logs
@@ -27,7 +27,7 @@ npm install
 cp .env.example .env.local
 ```
 
-For the credential-free local preview, set `APP_URL=http://localhost:3000` and `DEV_AUTH_BYPASS=true` in `.env.local`, then run. The bypass requires a loopback `APP_URL` and is restricted to localhost by the request proxy; never configure it in a deployed environment.
+For the credential-free local preview, set `APP_URL=http://localhost:3000` and `DEV_AUTH_BYPASS=true` in `.env.local`, then run. The bypass requires a loopback `APP_URL` and is restricted to localhost by the request proxy; never configure it in a deployed environment. If `DATABASE_URL` is blank in this mode, Jarvis automatically uses a private on-device database under `.jarvis/`; production still requires PostgreSQL.
 
 ```bash
 npm run dev

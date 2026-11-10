@@ -10,19 +10,17 @@ import {
   Sunrise,
 } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { DayAgenda } from "@/components/dashboard/day-agenda";
+import { DashboardAgendaCard, DashboardCalendarStatus } from "@/components/dashboard/dashboard-calendar";
 import { TimeAwareGreeting } from "@/components/dashboard/time-aware-greeting";
 import { PageHeader } from "@/components/page-header";
 import { incompleteTaskCounts } from "@/domain/tasks";
-import { getMockEvents, mockTasks } from "@/lib/mock-data";
+import { listTasksForCurrentViewer } from "@/data/tasks";
 
 export const metadata = { title: "Today" };
 
-export default function DashboardPage() {
-  const events = getMockEvents();
-  const todayEventCount = events.filter((event) => new Date(event.start).toDateString() === new Date().toDateString()).length;
-  const counts = incompleteTaskCounts(mockTasks);
+export default async function DashboardPage() {
+  const tasks = await listTasksForCurrentViewer();
+  const counts = incompleteTaskCounts(tasks);
 
   return (
     <>
@@ -38,21 +36,7 @@ export default function DashboardPage() {
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(22rem,1.1fr)_minmax(15rem,0.95fr)_minmax(15rem,0.95fr)]">
-        <section className="card flex overflow-hidden xl:h-[21.5rem] xl:flex-col">
-          <div className="flex items-center justify-between border-b px-4 py-3 sm:px-5">
-            <div>
-              <p className="text-sm font-bold">Daily agenda</p>
-              <p className="mt-0.5 text-xs text-[var(--muted)]">{format(new Date(), "EEEE, MMMM d")}</p>
-            </div>
-            <div className="flex items-center gap-2 text-xs font-medium text-[var(--muted)]">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              {todayEventCount} {todayEventCount === 1 ? "event" : "events"} today
-            </div>
-          </div>
-          <div className="min-h-0 flex-1 px-3 pb-3 pt-3 sm:px-4">
-            <DayAgenda events={events} compact />
-          </div>
-        </section>
+        <DashboardAgendaCard />
 
         <Link href="/calendar" className="card card-interactive focus-ring group min-h-56 overflow-hidden p-4 xl:h-[21.5rem] xl:min-h-0">
             <div className="flex items-start justify-between">
@@ -105,10 +89,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <div className="mt-4 flex items-center justify-between rounded-xl border bg-[var(--surface-subtle)] px-4 py-3 text-xs text-[var(--muted)]">
-        <span className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-amber-400" /> Preview data is active. Google Calendar and Canvas are not connected.</span>
-        <Link href="/settings" className="hidden font-semibold text-[var(--accent)] sm:block">Review connections</Link>
-      </div>
+      <DashboardCalendarStatus />
     </>
   );
 }

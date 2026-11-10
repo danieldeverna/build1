@@ -16,7 +16,7 @@ export type Task = {
   priority: TaskPriority | null;
   estimatedMinutes: number | null;
   notes: string | null;
-  source: "build1" | "canvas";
+  source: "build1" | "imported";
 };
 
 export const taskInputSchema = z.object({

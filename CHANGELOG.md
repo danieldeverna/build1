@@ -2,6 +2,25 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.7.0.0] - 2026-11-10
+
+### Added
+
+- Added private, user-scoped task persistence with lifecycle activity logs for creation, edits, completion, reopening, and archival.
+- Added a local on-device database fallback for the single-user preview, while deployed environments continue to require an explicit PostgreSQL connection.
+- Added a shared live calendar data source used by Calendar, Dashboard daily agenda, and Fitness preview.
+
+### Changed
+
+- Archived tasks are now hidden from Work and Dashboard instead of being permanently deleted.
+- Daily agenda now renders the shared calendar, and Calendar shows the current-time line and opens near the current hour.
+- Calendar drag-and-drop changes are saved immediately without opening the edit dialog.
+
+### Fixed
+
+- Kept calendar overlays in sync across same-tab views and prevented duplicate polling by consolidating calendar ownership in the app shell.
+- Made browser tests deterministic for the single-user local database and added lifecycle, ownership, shared-agenda, current-time, drag, and overlay notification coverage.
+
 ## [0.6.0.0] - 2026-11-10
 
 ### Added

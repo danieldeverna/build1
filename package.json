@@ -1,6 +1,6 @@
 {
   "name": "build1",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "module",
   "private": true,
   "engines": {
@@ -20,6 +20,7 @@
     "check": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.15",
     "clsx": "2.1.1",
     "date-fns": "4.4.0",
     "date-fns-tz": "3.2.0",
@@ -34,7 +35,6 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.15",
     "@playwright/test": "1.65.0",
     "@tailwindcss/postcss": "4.3.5",
     "@testing-library/jest-dom": "6.9.1",

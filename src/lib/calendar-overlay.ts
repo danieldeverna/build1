@@ -1,6 +1,7 @@
 import type { CalendarEvent } from "@/domain/calendar";
 
 const STORAGE_KEY = "jarvis-calendar-overlay-v1";
+export const CALENDAR_OVERLAY_CHANGED_EVENT = "jarvis:calendar-overlay-changed";
 
 export type CalendarOverlay = {
   events: CalendarEvent[];
@@ -25,7 +26,10 @@ export function readCalendarOverlay(): CalendarOverlay {
 }
 
 export function saveCalendarOverlay(overlay: CalendarOverlay) {
-  if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, JSON.stringify(overlay));
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(overlay));
+    window.dispatchEvent(new Event(CALENDAR_OVERLAY_CHANGED_EVENT));
+  }
 }
 
 export function mergeCalendarEvents(providerEvents: CalendarEvent[], overlay: CalendarOverlay) {

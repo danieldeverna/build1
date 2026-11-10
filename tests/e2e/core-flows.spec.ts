@@ -19,14 +19,15 @@ test("desktop dashboard keeps every tile above the fold", async ({ page }) => {
 });
 
 test("task creation and category filtering", async ({ page }) => {
+  const taskTitle = `Send application follow-up ${Date.now()}`;
   await page.goto("/work");
   await page.getByRole("button", { name: "Add task" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Title").fill("Send application follow-up");
+  await dialog.getByLabel("Title").fill(taskTitle);
   await dialog.getByLabel("Category").selectOption("recruiting");
   await dialog.getByRole("button", { name: "Add task" }).click();
   await page.getByRole("tab", { name: /Recruiting/ }).click();
-  await expect(page.getByText("Send application follow-up")).toBeVisible();
+  await expect(page.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible();
 });
 
 test("fitness planner presents and tracks the adaptive week", async ({ page }) => {

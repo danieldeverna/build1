@@ -3,11 +3,12 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://localhost:3000",
     trace: "on-first-retry",
   },
   projects: [
@@ -15,8 +16,8 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["iPhone 13"], browserName: "chromium" } },
   ],
   webServer: {
-    command: "APP_URL=http://127.0.0.1:3000 DEV_AUTH_BYPASS=true AUTH_SECRET=jarvis-e2e-only npm run dev -- --hostname 127.0.0.1",
-    url: "http://127.0.0.1:3000",
+    command: "APP_URL=http://localhost:3000 DEV_AUTH_BYPASS=true AUTH_SECRET=jarvis-e2e-only npm run dev -- --hostname localhost",
+    url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
   },
 });
