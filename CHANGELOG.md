@@ -2,6 +2,22 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.5.0.0] - 2026-11-09
+
+### Added
+
+- Expanded the calendar and daily agenda to a complete midnight-to-midnight timeline, including all-day events.
+- Made calendar items selectable, editable, deletable, and draggable between days. Google-sourced event details, notes, links, and recurrence metadata are now visible in Jarvis.
+- Added Jarvis-only calendar overlays for private event creation, editing, moving, and permanent local deletion of imported events.
+- Added app-wide workout reconciliation that schedules workouts around the live calendar, moves conflicting workouts, favors available slots after EFG, JCIV, Macro, and Philosophy classes, and keeps manual workout adjustments until a real conflict occurs.
+- Added a functional Fitness calendar preview with workout sessions highlighted and Open-Meteo air-quality data in Weather details.
+
+### Changed
+
+- Removed every Google Calendar write path and write OAuth scope. Google Calendar is now a strictly read-only source; all calendar mutations stay in Jarvis.
+- Made the hourly Weather tiles responsive so the complete daily sequence fits without horizontal scrolling.
+- Added coverage for calendar overlays, all-day date spans, quarter-hour post-class workout placement, current-time scheduling bounds, and read-only Google adapter behavior.
+
 ## [0.4.0.0] - 2026-11-09
 
 ### Added

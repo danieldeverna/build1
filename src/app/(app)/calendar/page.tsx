@@ -11,7 +11,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const cookieStore = await cookies();
   const connected = Boolean(unsealGoogleCalendarSession(cookieStore.get(GOOGLE_CALENDAR_SESSION_COOKIE)?.value));
   return <>
-    <PageHeader eyebrow="Schedule" title="Calendar" description={connected ? "Your Google Calendar is synced here; new Jarvis events can publish to it." : "Connect Google Calendar to replace preview events with your live schedule."} />
+    <PageHeader eyebrow="Schedule" title="Calendar" description={connected ? "Your Google Calendar is visible here. Jarvis edits and workouts stay in this private platform calendar." : "Connect Google Calendar to replace preview events with your live schedule."} />
     <CalendarWorkspace initialEvents={connected ? [] : getMockEvents()} initialNew={params.new === "true"} googleCalendarConnected={connected} />
   </>;
 }

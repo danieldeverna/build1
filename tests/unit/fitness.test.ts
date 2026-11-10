@@ -26,6 +26,12 @@ describe("fitness scheduling", () => {
     expect(new Date(workout.reservedStart).getTime()).toBeGreaterThanOrEqual(planningTime.getTime());
   });
 
+  it("uses a supplied current-time boundary instead of filling past slots", () => {
+    const planningTime = new Date(2026, 10, 10, 14, 30, 0, 0);
+    const plan = scheduleFitnessWeek({ weekStart: monday, events: [], templates: [workoutTemplates[0]], notBefore: planningTime });
+    expect(new Date(plan[0].reservedStart).getTime()).toBeGreaterThanOrEqual(planningTime.getTime());
+  });
+
   it("uses the 60-minute variant when a 75-minute slot would collide", () => {
     const event: CalendarEvent = { id: "evening", title: "Evening commitment", start: new Date(2026, 10, 9, 17, 30).toISOString(), end: new Date(2026, 10, 9, 20, 0).toISOString(), allDay: false, source: "google", color: "blue" };
     const profile = { ...defaultFitnessProfile, durations: [75, 60] as Array<75 | 60> };
@@ -47,5 +53,13 @@ describe("fitness scheduling", () => {
     expect(event.source).toBe("jarvis");
     expect(event.id).toBe(workout.calendarEventId);
     expect(event.title).toContain("Upper Push");
+    expect(event.automationType).toBe("workout");
+  });
+
+  it("prioritizes an available slot immediately after a recognized class", () => {
+    const classEvent: CalendarEvent = { id: "efg", title: "EFG", start: new Date(2026, 10, 9, 11, 0).toISOString(), end: new Date(2026, 10, 9, 13, 15).toISOString(), allDay: false, source: "google", color: "violet" };
+    const [workout] = scheduleFitnessWeek({ weekStart: monday, events: [classEvent], templates: [workoutTemplates[0]] });
+    expect(new Date(workout.reservedStart).getHours()).toBe(13);
+    expect(new Date(workout.reservedStart).getMinutes()).toBe(15);
   });
 });

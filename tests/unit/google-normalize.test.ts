@@ -3,8 +3,8 @@ import { normalizeGoogleEvent } from "@/integrations/google-calendar/normalize";
 
 describe("Google Calendar normalization", () => {
   it("normalizes timed events as read-only calendar data", () => {
-    const result = normalizeGoogleEvent({ id: "g-1", summary: "Class", start: { dateTime: "2026-11-07T10:00:00-05:00" }, end: { dateTime: "2026-11-07T11:00:00-05:00" } });
-    expect(result).toMatchObject({ id: "g-1", title: "Class", allDay: false, source: "google" });
+    const result = normalizeGoogleEvent({ id: "g-1", summary: "Class", description: "Bring notes", htmlLink: "https://calendar.google.com/event/1", recurringEventId: "series-1", start: { dateTime: "2026-11-07T10:00:00-05:00" }, end: { dateTime: "2026-11-07T11:00:00-05:00" } });
+    expect(result).toMatchObject({ id: "g-1", title: "Class", allDay: false, source: "google", notes: "Bring notes", url: "https://calendar.google.com/event/1", recurringEventId: "series-1", canEdit: true, canDelete: true });
   });
 
   it("recognizes all-day events and rejects incomplete records", () => {

@@ -49,7 +49,9 @@ export type OpenMeteoPayload = {
   };
 };
 
-export function mapOpenMeteoForecast(payload: OpenMeteoPayload): WeatherForecast {
+type OpenMeteoAirQualityPayload = { current?: { time?: string; us_aqi?: number } };
+
+export function mapOpenMeteoForecast(payload: OpenMeteoPayload, airQuality?: OpenMeteoAirQualityPayload | null): WeatherForecast {
   const currentHour = `${payload.current.time.slice(0, 13)}:00`;
   const currentHourIndex = Math.max(0, payload.hourly.time.findIndex((time) => time >= currentHour));
   const hourly = payload.hourly.time.slice(currentHourIndex, currentHourIndex + 12).map((time, offset) => {
@@ -99,6 +101,7 @@ export function mapOpenMeteoForecast(payload: OpenMeteoPayload): WeatherForecast
       sunset: payload.daily.sunset[index],
       windSpeed: payload.daily.wind_speed_10m_max[index],
     })),
+    airQuality: typeof airQuality?.current?.us_aqi === "number" && airQuality.current.time ? { usAqi: airQuality.current.us_aqi, observedAt: airQuality.current.time } : undefined,
   };
 }
 
@@ -120,5 +123,9 @@ export async function getGeorgetownWeather(): Promise<WeatherForecast> {
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error(`Weather provider returned ${response.status}`);
-  return mapOpenMeteoForecast(await response.json() as OpenMeteoPayload);
+  const airQualityParameters = new URLSearchParams({ latitude: String(GEORGETOWN_WEATHER_LOCATION.latitude), longitude: String(GEORGETOWN_WEATHER_LOCATION.longitude), current: "us_aqi", timezone: GEORGETOWN_WEATHER_LOCATION.timezone });
+  const airQuality = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${airQualityParameters}`, { next: { revalidate: 900 }, signal: AbortSignal.timeout(8000) })
+    .then(async (airQualityResponse) => airQualityResponse.ok ? await airQualityResponse.json() as OpenMeteoAirQualityPayload : null)
+    .catch(() => null);
+  return mapOpenMeteoForecast(await response.json() as OpenMeteoPayload, airQuality);
 }

@@ -48,6 +48,7 @@ export type WeatherForecast = {
   current: CurrentWeather;
   hourly: HourlyWeather[];
   daily: DailyWeather[];
+  airQuality?: { usAqi: number; observedAt: string };
 };
 
 export function weatherCodeInfo(code: number): { label: string; icon: WeatherIconKind } {
@@ -73,6 +74,15 @@ export function uvIndexLabel(value: number) {
   if (value < 8) return "High";
   if (value < 11) return "Very high";
   return "Extreme";
+}
+
+export function airQualityLabel(value: number) {
+  if (value <= 50) return "Good";
+  if (value <= 100) return "Moderate";
+  if (value <= 150) return "Unhealthy for sensitive groups";
+  if (value <= 200) return "Unhealthy";
+  if (value <= 300) return "Very unhealthy";
+  return "Hazardous";
 }
 
 export function formatWeatherTime(localIso: string) {

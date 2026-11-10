@@ -7,8 +7,8 @@ Jarvis is a single Next.js application. Server-rendered pages, authenticated rou
 - Authentication proves access to the private workspace; Google Calendar authorization is a separate consent flow.
 - Google tokens are encrypted with AES-256-GCM in an HttpOnly, SameSite cookie for the local single-user build. Production deployment will move the same encrypted credential payload to PostgreSQL.
 - Provider modules are server-only and return normalized domain records to the rest of the application.
-- Imported events and assignments are immutable through Jarvis. The Google adapter will expose list and insert operations, never update or delete operations.
-- Disconnected calendar items remain local drafts. When connected, explicit publishing uses a stable Jarvis idempotency key and tags the provider event as Jarvis-owned. The adapter never exposes update or delete operations.
+- Google Calendar is a read-only provider. Jarvis can locally overlay, move, edit, or hide imported events without mutating their Google originals; the adapter exposes list operations only.
+- Jarvis-created events and automated workouts stay in the private platform calendar layer. Provider credentials are never used for event mutations.
 
 ## Data flow
 

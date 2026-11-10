@@ -22,22 +22,13 @@ describe("Google Calendar API adapter", () => {
     expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ authorization: "Bearer access-token" });
   });
 
-  it("tags newly inserted events as Jarvis-owned", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "google-1", htmlLink: "https://calendar.google.com/event/1" }), { status: 200 }));
+  it("uses only GET requests when reading Google events", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new GoogleCalendarApiAdapter("access-token").insertEvent({
-      idempotencyKey: "jarvis-1",
-      title: "Upper body workout",
-      start: "2026-11-10T17:00:00.000Z",
-      end: "2026-11-10T18:15:00.000Z",
-    });
+    await new GoogleCalendarApiAdapter("access-token").listEvents({ start: new Date("2026-11-09T00:00:00Z"), end: new Date("2026-11-10T00:00:00Z") });
 
-    expect(result.externalId).toBe("google-1");
-    const request = fetchMock.mock.calls[1][1] as RequestInit;
-    const body = JSON.parse(String(request.body));
-    expect(body.extendedProperties.private).toEqual({ jarvisOwned: "true", jarvisId: "jarvis-1" });
+    expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+    expect(fetchMock.mock.calls[0][1]?.body).toBeUndefined();
   });
 });

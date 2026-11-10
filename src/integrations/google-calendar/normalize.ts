@@ -4,6 +4,9 @@ export type GoogleEvent = {
   id?: string | null;
   summary?: string | null;
   location?: string | null;
+  description?: string | null;
+  htmlLink?: string | null;
+  recurringEventId?: string | null;
   start?: { date?: string | null; dateTime?: string | null } | null;
   end?: { date?: string | null; dateTime?: string | null } | null;
 };
@@ -26,6 +29,11 @@ export function normalizeGoogleEvent(event: GoogleEvent): CalendarEvent | null {
     allDay,
     source: "google",
     location: event.location ?? undefined,
+    notes: event.description ?? undefined,
+    url: event.htmlLink ?? undefined,
+    recurringEventId: event.recurringEventId ?? undefined,
+    canEdit: true,
+    canDelete: true,
     color: "violet",
   };
 }

@@ -7,7 +7,7 @@ import {
   CloudSun,
   Droplets,
   Eye,
-  Gauge,
+  Leaf,
   MapPin,
   Navigation,
   Sunrise,
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { WeatherForecast, WeatherIconKind } from "@/domain/weather";
-import { formatWeatherTime, uvIndexLabel, weatherCodeInfo, windDirectionLabel } from "@/domain/weather";
+import { airQualityLabel, formatWeatherTime, uvIndexLabel, weatherCodeInfo, windDirectionLabel } from "@/domain/weather";
 
 const weatherIcons: Record<WeatherIconKind, LucideIcon> = {
   clear: Sun,
@@ -56,15 +56,15 @@ export function WeatherDashboard({ forecast }: { forecast: WeatherForecast }) {
 
     <section className="card p-5 sm:p-6">
       <div className="flex items-end justify-between gap-4"><div><p className="eyebrow">Next 12 hours</p><h2 className="mt-1 text-xl font-bold tracking-[-.035em]">Throughout the day</h2></div><p className="hidden text-xs text-[var(--muted)] sm:block">Local time · Georgetown</p></div>
-      <div className="mt-5 flex snap-x gap-2.5 overflow-x-auto pb-2">{forecast.hourly.map((hour, index) => {
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12">{forecast.hourly.map((hour, index) => {
         const info = weatherCodeInfo(hour.weatherCode);
         const Icon = weatherIcons[info.icon];
-        return <article key={hour.time} className="min-w-[8.5rem] snap-start rounded-2xl border bg-[var(--surface-subtle)] p-3.5">
-          <p className="text-xs font-semibold text-[var(--muted)]">{index === 0 ? "Now" : formatWeatherTime(hour.time)}</p>
-          <Icon className="my-4 text-sky-500" size={25}/>
-          <p className="text-2xl font-bold tracking-[-.04em]">{Math.round(hour.temperature)}°</p>
-          <p className="mt-1 text-[.68rem] text-[var(--muted)]">Feels {Math.round(hour.feelsLike)}°</p>
-          <div className="mt-3 flex items-center justify-between text-[.65rem] text-[var(--muted)]"><span className="flex items-center gap-1 text-blue-500"><Droplets size={11}/>{hour.precipitationChance}%</span><span>UV {hour.uvIndex.toFixed(1)}</span></div>
+        return <article key={hour.time} className="min-w-0 rounded-xl border bg-[var(--surface-subtle)] p-2.5 sm:p-3">
+          <p className="truncate text-[.66rem] font-semibold text-[var(--muted)]">{index === 0 ? "Now" : formatWeatherTime(hour.time)}</p>
+          <Icon className="my-2.5 text-sky-500" size={20}/>
+          <p className="text-xl font-bold tracking-[-.04em]">{Math.round(hour.temperature)}°</p>
+          <p className="mt-0.5 truncate text-[.62rem] text-[var(--muted)]">Feels {Math.round(hour.feelsLike)}°</p>
+          <div className="mt-2 flex items-center justify-between gap-1 text-[.58rem] text-[var(--muted)]"><span className="flex items-center gap-0.5 text-blue-500"><Droplets size={9}/>{hour.precipitationChance}%</span><span>UV {hour.uvIndex.toFixed(1)}</span></div>
         </article>;
       })}</div>
     </section>
@@ -73,7 +73,7 @@ export function WeatherDashboard({ forecast }: { forecast: WeatherForecast }) {
       <section className="card p-5 sm:p-6"><p className="eyebrow">Details</p><h2 className="mt-1 text-xl font-bold tracking-[-.035em]">Right now</h2><div className="mt-5 grid grid-cols-2 gap-3">
         <Detail icon={Wind} label="Wind gusts" value={`${Math.round(forecast.current.windGusts)} mph`}/>
         <Detail icon={Navigation} label="Direction" value={`${windDirectionLabel(forecast.current.windDirection)} · ${Math.round(forecast.current.windDirection)}°`}/>
-        <Detail icon={Gauge} label="Pressure" value={`${Math.round(forecast.current.pressure)} hPa`}/>
+        <Detail icon={Leaf} label="Air quality" value={forecast.airQuality ? `${Math.round(forecast.airQuality.usAqi)} · ${airQualityLabel(forecast.airQuality.usAqi)}` : "Unavailable"}/>
         <Detail icon={Eye} label="Cloud cover" value={`${forecast.current.cloudCover}%`}/>
         <Detail icon={Sunrise} label="Sunrise" value={formatWeatherTime(today.sunrise)}/>
         <Detail icon={Sunset} label="Sunset" value={formatWeatherTime(today.sunset)}/>

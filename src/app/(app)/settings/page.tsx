@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         <div className="mt-5 border-t pt-5">
           <div className="flex items-start gap-3">
             <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${connection ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-200" : "bg-[var(--surface-subtle)] text-[var(--muted)]"}`}><CalendarCheck2 size={18} /></span>
-            <div className="min-w-0 flex-1"><p className="text-sm font-bold">Google Calendar</p><p className="mt-1 truncate text-xs text-[var(--muted)]">{connection ? connection.email : "Read your schedule and publish Jarvis-created events."}</p></div>
+            <div className="min-w-0 flex-1"><p className="text-sm font-bold">Google Calendar</p><p className="mt-1 truncate text-xs text-[var(--muted)]">{connection ? connection.email : "Read your schedule into Jarvis's private platform calendar."}</p></div>
           </div>
           {!setup.configured && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-100">Complete these values in <code>.env.local</code>: {setup.missing.join(", ")}.</p>}
           <div className="mt-5 flex flex-wrap gap-2">
@@ -46,7 +46,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ c
         <div className="mt-5 border-t pt-4"><div className="flex items-center gap-3"><Link2 size={16} className="text-[var(--muted)]" /><span className="flex-1 text-sm font-medium">Canvas</span><span className="text-xs text-[var(--muted)]">Setup pending</span></div></div>
       </section>
       <section className="card p-6"><h2 className="font-bold">Preferences</h2><Row icon={Clock3} label="Time zone" value="America/New_York" /><Row icon={CloudSun} label="Weather" value="Georgetown, D.C." /></section>
-      <section className="card p-6 lg:col-span-2"><ShieldCheck className="text-emerald-500" /><h2 className="mt-4 font-bold">Private workspace</h2><p className="mt-2 text-sm text-[var(--muted)]">Google credentials are encrypted, stored in an HttpOnly cookie, and never exposed to browser JavaScript. Imported provider events remain read-only; Jarvis only creates events you explicitly publish.</p></section>
+      <section className="card p-6 lg:col-span-2"><ShieldCheck className="text-emerald-500" /><h2 className="mt-4 font-bold">Private workspace</h2><p className="mt-2 text-sm text-[var(--muted)]">Google credentials are encrypted, stored in an HttpOnly cookie, and never exposed to browser JavaScript. Google Calendar is a read-only source: edits, deletions, and workouts stay inside Jarvis.</p></section>
     </div>
   </>;
 }

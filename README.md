@@ -7,8 +7,8 @@ A private, single-user command-center web app for schedule, academic work, recru
 - Responsive authenticated app shell and dark mode
 - Calendar-first dashboard with live current-time indicator
 - Day, week, and month calendar views
-- Live Google Calendar connection with secure OAuth, automatic refresh, read-only event sync, and explicit event publishing
-- Local event-draft creation when Google Calendar is disconnected
+- Live Google Calendar connection with secure OAuth, automatic refresh, and read-only event sync
+- Private Jarvis calendar overlays for event creation, edits, moves, and deletions
 - Work tabs with local task create, edit, complete, reopen, and delete interactions
 - Dedicated Health, Fitness, Weather, and Settings pages
 - Google Calendar, Canvas, and Weather adapter boundaries
@@ -42,7 +42,7 @@ Open [http://localhost:3000](http://localhost:3000).
 4. Generate `CREDENTIAL_ENCRYPTION_KEY` with `openssl rand -base64 32` and add it to `.env.local`.
 5. Restart `npm run dev`, open Jarvis Settings, and select **Connect Google Calendar**.
 
-Jarvis requests email identity, read-only access to calendar events, and event access for calendars you own. Imported events cannot be edited or deleted in Jarvis. Only events explicitly created through Jarvis are published. Local OAuth credentials are encrypted in an HttpOnly cookie; production database persistence remains a separate deployment step.
+Jarvis requests email identity and read-only access to calendar events. Google is never modified: event creation, edits, moves, deletions, and automated workouts stay on Jarvis's private calendar layer. Existing connections should be reconnected after this update to refresh consent. Local OAuth credentials are encrypted in an HttpOnly cookie; production database persistence remains a separate deployment step.
 
 ## Verification
 

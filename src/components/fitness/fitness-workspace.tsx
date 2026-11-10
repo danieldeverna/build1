@@ -1,14 +1,17 @@
 "use client";
 
 import { CalendarCheck2, Check, Clock3, Database, Dumbbell, ShieldCheck, Sparkles, Target, TrendingUp, X } from "lucide-react";
-import { format } from "date-fns";
-import { useMemo, useState } from "react";
-import { workoutTemplates, type PlannedWorkout } from "@/domain/fitness";
+import { format, startOfWeek } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { plannedWorkoutToCalendarEvent, workoutTemplates, type PlannedWorkout } from "@/domain/fitness";
 import { cn } from "@/lib/cn";
+import { reconcileFitnessCalendar } from "@/lib/fitness-calendar-sync";
 
-export function FitnessWorkspace({ initialPlan }: { initialPlan: PlannedWorkout[] }) {
+export function FitnessWorkspace({ initialPlan, googleCalendarConnected = false }: { initialPlan: PlannedWorkout[]; googleCalendarConnected?: boolean }) {
   const [plan, setPlan] = useState(initialPlan);
   const [skipId, setSkipId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewEvents, setPreviewEvents] = useState(() => initialPlan.map(plannedWorkoutToCalendarEvent));
   const nextWorkout = useMemo(() => plan.find((item) => item.status === "scheduled" && item.protected) ?? plan.find((item) => item.status === "scheduled"), [plan]);
   const completed = plan.filter((item) => item.status === "completed").length;
 
@@ -16,6 +19,31 @@ export function FitnessWorkspace({ initialPlan }: { initialPlan: PlannedWorkout[
     setPlan((current) => current.map((item) => item.id === id ? { ...item, status, reason: reason ?? item.reason } : item));
     setSkipId(null);
   }
+
+  useEffect(() => {
+    if (!googleCalendarConnected) return;
+    let active = true;
+    const sync = async () => {
+      try {
+        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+        const timeMin = weekStart.toISOString();
+        const timeMax = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const response = await fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+        const result = await response.json() as { events?: import("@/domain/calendar").CalendarEvent[] };
+        if (!response.ok || !result.events || !active) return;
+        const reconciliation = reconcileFitnessCalendar(result.events);
+        if (active) {
+          setPlan(reconciliation.plan);
+          setPreviewEvents(reconciliation.events);
+        }
+      } catch {
+        // The visible preview plan remains available while Google is unavailable.
+      }
+    };
+    void sync();
+    const interval = window.setInterval(() => void sync(), 5 * 60 * 1000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [googleCalendarConnected]);
 
   return <div className="space-y-5">
     <section className="overflow-hidden rounded-[1.25rem] border border-emerald-900 bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 p-6 text-white shadow-[var(--shadow)] sm:p-7">
@@ -26,7 +54,7 @@ export function FitnessWorkspace({ initialPlan }: { initialPlan: PlannedWorkout[
     </section>
 
     <section>
-      <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">This week</p><h2 className="mt-1 text-xl font-bold tracking-[-.035em]">Scheduled automatically</h2></div><span className="hidden items-center gap-1.5 text-xs text-[var(--muted)] sm:flex"><CalendarCheck2 size={14}/> Preview calendar</span></div>
+      <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">This week</p><h2 className="mt-1 text-xl font-bold tracking-[-.035em]">Scheduled automatically</h2></div><button onClick={() => setPreviewOpen(true)} className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold hover:bg-[var(--surface-subtle)]"><CalendarCheck2 size={14}/>Preview calendar</button></div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{plan.map((workout, index)=><WorkoutCard key={workout.id} workout={workout} index={index}/>)}</div>
     </section>
 
@@ -45,9 +73,12 @@ export function FitnessWorkspace({ initialPlan }: { initialPlan: PlannedWorkout[
     </section>
 
     {skipId&&<div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)setSkipId(null)}}><div role="dialog" aria-modal="true" aria-labelledby="skip-title" className="card w-full max-w-sm p-5"><h2 id="skip-title" className="text-lg font-bold">Why are you skipping?</h2><p className="mt-1 text-sm text-[var(--muted)]">This helps the future planner distinguish workload from fatigue.</p><div className="mt-5 grid gap-2">{["Too much academic work","Fatigue or recovery","Not enough time","Other"].map((reason)=><button key={reason} onClick={()=>updateStatus(skipId,"skipped",reason)} className="focus-ring rounded-xl border px-4 py-3 text-left text-sm font-semibold hover:bg-[var(--surface-subtle)]">{reason}</button>)}</div><button onClick={()=>setSkipId(null)} className="mt-3 w-full py-2 text-sm font-semibold text-[var(--muted)]">Cancel</button></div></div>}
+    {previewOpen&&<FitnessCalendarPreview events={previewEvents} onClose={()=>setPreviewOpen(false)}/>}
   </div>;
 }
 
 function Metric({value,label}:{value:string;label:string}){return <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3"><p className="text-lg font-bold">{value}</p><p className="mt-0.5 text-[.62rem] uppercase tracking-wider text-slate-400">{label}</p></div>}
 function WorkoutCard({workout,index}:{workout:PlannedWorkout;index:number}){return <article className={cn("card p-4",workout.status==="completed"&&"border-emerald-300 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-950/20",workout.status==="skipped"&&"opacity-60")}><div className="flex items-center justify-between"><span className="text-[.65rem] font-bold uppercase tracking-wider text-[var(--muted)]">{workout.protected?`Protected ${index+1}`:"Optional"}</span><span className={cn("rounded-full px-2 py-1 text-[.62rem] font-bold",workout.protected?"bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300":"bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300")}>{workout.status.replace("_"," ")}</span></div><p className="mt-4 font-bold">{workout.title}</p><p className="mt-1 text-xs text-[var(--muted)]">{format(new Date(workout.liftStart),"EEE · h:mm a")} · {workout.durationMinutes} min</p><p className="mt-4 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{workout.reason}</p></article>}
 function PlanRow({icon:Icon,label,value}:{icon:typeof Target;label:string;value:string}){return <div className="flex items-center gap-3"><Icon size={16} className="text-[var(--muted)]"/><span className="flex-1 text-sm font-medium">{label}</span><span className="text-right text-xs text-[var(--muted)]">{value}</span></div>}
+
+function FitnessCalendarPreview({events,onClose}:{events:import("@/domain/calendar").CalendarEvent[];onClose:()=>void}){const days=Array.from({length:7},(_,index)=>new Date(startOfWeek(new Date(),{weekStartsOn:1}).getTime()+index*24*60*60*1000));return <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)onClose()}}><div role="dialog" aria-modal="true" aria-labelledby="fitness-calendar-title" className="card w-full max-w-5xl p-5 sm:p-6"><div className="flex items-start justify-between"><div><p className="eyebrow">Schedule preview</p><h2 id="fitness-calendar-title" className="mt-1 text-xl font-bold">Workouts, highlighted</h2></div><button onClick={onClose} className="focus-ring rounded-lg px-3 py-2 text-sm font-semibold">Close</button></div><div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">{days.map(day=>{const dayEvents=events.filter(event=>new Date(event.start).getFullYear()===day.getFullYear()&&new Date(event.start).getMonth()===day.getMonth()&&new Date(event.start).getDate()===day.getDate());return <section key={day.toISOString()} className="min-h-36 rounded-xl border p-3"><p className="text-xs font-bold">{format(day,"EEE d")}</p><div className="mt-3 space-y-2">{dayEvents.length?dayEvents.map(event=><div key={event.id} className={cn("rounded-lg border px-2 py-1.5 text-[.68rem] font-semibold",event.automationType==="workout"?"border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100":"border-slate-200 bg-[var(--surface-subtle)] text-[var(--muted)]")}><p className="truncate">{event.title}</p><p className="mt-0.5 opacity-70">{format(new Date(event.start),"h:mm a")}</p></div>):<p className="text-xs text-[var(--muted-2)]">Open</p>}</div></section>})}</div></div></div>}
