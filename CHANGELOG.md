@@ -2,6 +2,28 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.8.0.0] - 2026-11-11
+
+### Added
+
+- Added an orange-accented Morning Brief dashboard tile and a protected `/morning-brief` workspace for today’s schedule, priority work, movement, weather, and source freshness.
+- Added one deterministic, Georgetown-aware brief composer shared by the compact dashboard and full workspace, including DST-safe day boundaries, task ranking, schedule conflicts, and weather watchouts.
+- Added independent task and weather snapshots with partial-failure states, retained stale data, honest preview labels, and manual or midnight refresh behavior.
+
+### Changed
+
+- Replaced the dashboard extension slot with Morning Brief and replaced the static weather example with the same live Georgetown forecast used by the brief.
+- Extended the shared Calendar provider with explicit freshness, immediate refresh support, and latest-request ordering while preserving Google Calendar as a strictly read-only source.
+- Revalidated Morning Brief after task mutations and kept slow or unavailable sources from blocking unrelated dashboard regions.
+
+### Security
+
+- Morning Brief excludes Canvas, does not access Gmail, and does not add any Google Calendar write operation, delivery channel, model call, or persisted generated brief.
+
+### Tests
+
+- Added deterministic domain, component, desktop, and mobile coverage for source degradation, refresh retention, response ordering, DST boundaries, responsive layout, and the absence of Gmail or Canvas requests.
+
 ## [0.7.0.0] - 2026-11-10
 
 ### Added
