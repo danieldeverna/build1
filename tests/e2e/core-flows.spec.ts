@@ -18,6 +18,24 @@ test("desktop dashboard keeps every tile above the fold", async ({ page }) => {
   expect(pageHeight).toBeLessThanOrEqual(900);
 });
 
+test("Morning Brief opens from the dashboard and stays responsive", async ({ page }) => {
+  const forbiddenRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/gmail|canvas/i.test(request.url())) forbiddenRequests.push(request.url());
+  });
+  await page.goto("/dashboard");
+  await page.getByRole("link", { name: /Morning Brief:/ }).click();
+  await expect(page).toHaveURL(/\/morning-brief$/);
+  await expect(page.getByRole("heading", { name: "Morning Brief" })).toBeVisible();
+  await expect(page.getByText("Up next", { exact: true })).toBeVisible();
+  await expect(page.getByText("Priority work", { exact: true })).toBeVisible();
+  await expect(page.getByText("Movement", { exact: true })).toBeVisible();
+  await expect(page.getByText("Conditions", { exact: true })).toBeVisible();
+  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+  expect(horizontalOverflow).toBe(false);
+  expect(forbiddenRequests).toEqual([]);
+});
+
 test("task creation and category filtering", async ({ page }) => {
   const taskTitle = `Send application follow-up ${Date.now()}`;
   await page.goto("/work");

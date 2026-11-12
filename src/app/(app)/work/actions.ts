@@ -14,6 +14,7 @@ function taskActionError(error: unknown): TaskActionResult {
 function refreshTaskViews() {
   revalidatePath("/work");
   revalidatePath("/dashboard");
+  revalidatePath("/morning-brief");
 }
 
 export async function createTaskAction(input: TaskInput): Promise<TaskActionResult> {

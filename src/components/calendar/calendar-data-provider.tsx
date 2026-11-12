@@ -1,7 +1,7 @@
 "use client";
 
 import { addDays } from "date-fns";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CalendarEvent } from "@/domain/calendar";
 import type { PlannedWorkout } from "@/domain/fitness";
 import { CALENDAR_OVERLAY_CHANGED_EVENT, mergeCalendarEvents, readCalendarOverlay, saveCalendarOverlay, type CalendarOverlay } from "@/lib/calendar-overlay";
@@ -17,6 +17,8 @@ type CalendarData = {
   syncMessage: string;
   googleCalendarConnected: boolean;
   fitnessPlan: PlannedWorkout[] | null;
+  lastSyncedAt: string | null;
+  refreshCalendar: () => Promise<boolean>;
 };
 
 const CalendarDataContext = createContext<CalendarData | null>(null);
@@ -27,6 +29,9 @@ export function CalendarDataProvider({ children, initialEvents, googleCalendarCo
   const [fitnessPlan, setFitnessPlan] = useState<PlannedWorkout[] | null>(null);
   const [syncState, setSyncState] = useState<CalendarSyncState>(googleCalendarConnected ? "syncing" : "preview");
   const [syncMessage, setSyncMessage] = useState(googleCalendarConnected ? "Syncing your Google Calendar…" : "Preview mode · Google Calendar is not connected. Changes stay on this device.");
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const mounted = useRef(true);
+  const latestSyncRequest = useRef(0);
   const events = useMemo(() => mergeCalendarEvents(providerEvents, overlay), [overlay, providerEvents]);
 
   const saveOverlay = useCallback((nextOverlay: CalendarOverlay) => {
@@ -41,40 +46,48 @@ export function CalendarDataProvider({ children, initialEvents, googleCalendarCo
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  const refreshCalendar = useCallback(async () => {
+    if (!googleCalendarConnected) return true;
+    const requestId = ++latestSyncRequest.current;
+    setSyncState((current) => current === "live" ? current : "syncing");
+    try {
+      const timeMin = addDays(new Date(), -90).toISOString();
+      const timeMax = addDays(new Date(), 365).toISOString();
+      const response = await fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+      const result = await response.json() as { events?: CalendarEvent[]; error?: string };
+      if (!response.ok || !result.events) throw new Error(result.error || "Calendar sync failed");
+      if (!mounted.current || requestId !== latestSyncRequest.current) return false;
+      const reconciliation = reconcileFitnessCalendar(result.events);
+      setProviderEvents(result.events);
+      setOverlay(reconciliation.overlay);
+      setFitnessPlan(reconciliation.plan);
+      setLastSyncedAt(new Date().toISOString());
+      setSyncState("live");
+      setSyncMessage(`Live Google Calendar · ${result.events.length} events synced. Jarvis changes never write back to Google.`);
+      return true;
+    } catch (error) {
+      if (!mounted.current || requestId !== latestSyncRequest.current) return false;
+      setSyncState("error");
+      setSyncMessage(error instanceof Error ? error.message : "Calendar sync failed. Reconnect from Settings.");
+      return false;
+    }
+  }, [googleCalendarConnected]);
+
+  useEffect(() => {
     if (!googleCalendarConnected) return;
-
-    let active = true;
-    const sync = async () => {
-      setSyncState((current) => current === "live" ? current : "syncing");
-      try {
-        const timeMin = addDays(new Date(), -90).toISOString();
-        const timeMax = addDays(new Date(), 365).toISOString();
-        const response = await fetch(`/api/integrations/google-calendar/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
-        const result = await response.json() as { events?: CalendarEvent[]; error?: string };
-        if (!response.ok || !result.events) throw new Error(result.error || "Calendar sync failed");
-        if (!active) return;
-        const reconciliation = reconcileFitnessCalendar(result.events);
-        setProviderEvents(result.events);
-        setOverlay(reconciliation.overlay);
-        setFitnessPlan(reconciliation.plan);
-        setSyncState("live");
-        setSyncMessage(`Live Google Calendar · ${result.events.length} events synced. Jarvis changes never write back to Google.`);
-      } catch (error) {
-        if (!active) return;
-        setSyncState("error");
-        setSyncMessage(error instanceof Error ? error.message : "Calendar sync failed. Reconnect from Settings.");
-      }
-    };
-
-    void sync();
-    const interval = window.setInterval(() => void sync(), 5 * 60 * 1000);
+    const initial = window.setTimeout(() => void refreshCalendar(), 0);
+    const interval = window.setInterval(() => void refreshCalendar(), 5 * 60 * 1000);
     return () => {
-      active = false;
+      window.clearTimeout(initial);
       window.clearInterval(interval);
     };
-  }, [googleCalendarConnected, initialEvents]);
+  }, [googleCalendarConnected, refreshCalendar]);
 
-  const value = useMemo<CalendarData>(() => ({ events, overlay, saveOverlay, syncState, syncMessage, googleCalendarConnected, fitnessPlan }), [events, fitnessPlan, googleCalendarConnected, overlay, saveOverlay, syncMessage, syncState]);
+  const value = useMemo<CalendarData>(() => ({ events, overlay, saveOverlay, syncState, syncMessage, googleCalendarConnected, fitnessPlan, lastSyncedAt, refreshCalendar }), [events, fitnessPlan, googleCalendarConnected, lastSyncedAt, overlay, refreshCalendar, saveOverlay, syncMessage, syncState]);
   return <CalendarDataContext.Provider value={value}>{children}</CalendarDataContext.Provider>;
 }
 
