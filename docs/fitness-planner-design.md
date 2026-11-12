@@ -166,7 +166,7 @@ Read profile units, routines, workouts, and exercise history. Use completion his
 
 ### Google Calendar
 
-Read events and free intervals. Write only Jarvis-owned workout events after the user grants calendar write permission. The existing preview calendar is not a substitute for provider-backed calendar mutation.
+Read events and free intervals only. Jarvis schedules, moves, and deletes workout sessions in its private platform calendar without writing to Google Calendar.
 
 ### Canvas
 
@@ -184,7 +184,7 @@ Deferred. It will feed workload scoring, not workout programming directly.
 1. Completed: define the fitness domain types and persistence schema.
 2. Completed: build the program and weekly-plan UI using deterministic preview data.
 3. Completed: implement workout variants and the pure scheduling engine with unit tests for constraints, recovery, and slot selection.
-4. In progress: Jarvis event ownership is modeled and workout events appear in the preview calendar; provider-backed Google Calendar writes and idempotent rescheduling still require a connected account with write scope.
+4. Completed: workouts are scheduled and reconciled in Jarvis's private calendar layer; Google Calendar remains a read-only source.
 5. Next: connect Hevy read data and progression signals, then add the preview-before-Hevy-write flow.
 6. Later: add Canvas/task workload forecasting as a separate decision layer once Canvas is connected.
 
@@ -206,4 +206,4 @@ Deferred. It will feed workload scoring, not workout programming directly.
 
 ## Next action
 
-Connect Google Calendar with write scope and complete the first-use baseline inputs. Until then, scheduled workouts remain Jarvis-owned preview events and no external calendar or Hevy data is changed.
+Connect Google Calendar with read-only scope and complete the first-use baseline inputs. Scheduled workouts remain Jarvis-owned platform events; no external calendar or Hevy data is changed.

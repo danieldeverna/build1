@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatWeatherTime, uvIndexLabel, weatherCodeInfo, windDirectionLabel } from "@/domain/weather";
+import { airQualityLabel, formatWeatherTime, uvIndexLabel, weatherCodeInfo, windDirectionLabel } from "@/domain/weather";
 import { mapOpenMeteoForecast, type OpenMeteoPayload } from "@/integrations/open-meteo";
 
 describe("weather presentation", () => {
@@ -18,6 +18,8 @@ describe("weather presentation", () => {
     expect(windDirectionLabel(290)).toBe("W");
     expect(uvIndexLabel(2.9)).toBe("Low");
     expect(uvIndexLabel(6)).toBe("High");
+    expect(airQualityLabel(50)).toBe("Good");
+    expect(airQualityLabel(151)).toBe("Unhealthy");
   });
 
   it("maps the provider response into 12 hourly and seven daily previews", () => {
@@ -33,10 +35,11 @@ describe("weather presentation", () => {
       hourly: { time: hours, temperature_2m: hourlyValues, apparent_temperature: hourlyValues, precipitation_probability: hourlyValues.map(() => 10), weather_code: hourlyValues.map(() => 0), uv_index: hourlyValues.map(() => 2), wind_speed_10m: hourlyValues.map(() => 7), relative_humidity_2m: hourlyValues.map(() => 55) },
       daily: { time: days, weather_code: dailyValues.map(() => 1), temperature_2m_max: dailyValues, temperature_2m_min: dailyValues.map((value) => value - 15), apparent_temperature_max: dailyValues, apparent_temperature_min: dailyValues.map((value) => value - 18), precipitation_probability_max: dailyValues.map(() => 20), uv_index_max: dailyValues.map(() => 4), sunrise: days.map((day) => `${day}T06:45`), sunset: days.map((day) => `${day}T17:00`), wind_speed_10m_max: dailyValues.map(() => 12) },
     };
-    const forecast = mapOpenMeteoForecast(payload);
+    const forecast = mapOpenMeteoForecast(payload, { current: { time: "2026-11-09T02:30", us_aqi: 42 } });
     expect(forecast.hourly).toHaveLength(12);
     expect(forecast.hourly[0].time).toBe("2026-11-09T02:00");
     expect(forecast.daily).toHaveLength(7);
     expect(forecast.current.uvIndex).toBe(2);
+    expect(forecast.airQuality).toEqual({ observedAt: "2026-11-09T02:30", usAqi: 42 });
   });
 });

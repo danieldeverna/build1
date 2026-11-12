@@ -2,6 +2,90 @@
 
 All notable changes to Jarvis are documented in this file.
 
+## [0.8.0.0] - 2026-11-11
+
+### Added
+
+- Added an orange-accented Morning Brief dashboard tile and a protected `/morning-brief` workspace for today’s schedule, priority work, movement, weather, and source freshness.
+- Added one deterministic, Georgetown-aware brief composer shared by the compact dashboard and full workspace, including DST-safe day boundaries, task ranking, schedule conflicts, and weather watchouts.
+- Added independent task and weather snapshots with partial-failure states, retained stale data, honest preview labels, and manual or midnight refresh behavior.
+
+### Changed
+
+- Replaced the dashboard extension slot with Morning Brief and replaced the static weather example with the same live Georgetown forecast used by the brief.
+- Extended the shared Calendar provider with explicit freshness, immediate refresh support, and latest-request ordering while preserving Google Calendar as a strictly read-only source.
+- Revalidated Morning Brief after task mutations and kept slow or unavailable sources from blocking unrelated dashboard regions.
+
+### Security
+
+- Morning Brief excludes Canvas, does not access Gmail, and does not add any Google Calendar write operation, delivery channel, model call, or persisted generated brief.
+
+### Tests
+
+- Added deterministic domain, component, desktop, and mobile coverage for source degradation, refresh retention, response ordering, DST boundaries, responsive layout, and the absence of Gmail or Canvas requests.
+
+## [0.7.0.0] - 2026-11-10
+
+### Added
+
+- Added private, user-scoped task persistence with lifecycle activity logs for creation, edits, completion, reopening, and archival.
+- Added a local on-device database fallback for the single-user preview, while deployed environments continue to require an explicit PostgreSQL connection.
+- Added a shared live calendar data source used by Calendar, Dashboard daily agenda, and Fitness preview.
+
+### Changed
+
+- Archived tasks are now hidden from Work and Dashboard instead of being permanently deleted.
+- Daily agenda now renders the shared calendar, and Calendar shows the current-time line and opens near the current hour.
+- Calendar drag-and-drop changes are saved immediately without opening the edit dialog.
+
+### Fixed
+
+- Kept calendar overlays in sync across same-tab views and prevented duplicate polling by consolidating calendar ownership in the app shell.
+- Made browser tests deterministic for the single-user local database and added lifecycle, ownership, shared-agenda, current-time, drag, and overlay notification coverage.
+
+## [0.6.0.0] - 2026-11-10
+
+### Added
+
+- Added a dedicated Gmail OAuth connection in Settings with encrypted credentials, refresh support, account validation, and disconnect/revocation handling.
+- Added a read-only Gmail adapter and protected message-list and message-read endpoints for future private briefing features.
+- Added a recent-mail preview after Gmail connection and setup documentation for the Gmail API and OAuth redirect URI.
+
+### Security
+
+- Requested only Gmail's `gmail.readonly` scope. Jarvis contains no send, archive, trash, delete, draft, or other email-modifying route.
+- Added tests asserting the Gmail OAuth scope and that the Gmail adapter makes read-only requests.
+
+## [0.5.0.0] - 2026-11-09
+
+### Added
+
+- Expanded the calendar and daily agenda to a complete midnight-to-midnight timeline, including all-day events.
+- Made calendar items selectable, editable, deletable, and draggable between days. Google-sourced event details, notes, links, and recurrence metadata are now visible in Jarvis.
+- Added Jarvis-only calendar overlays for private event creation, editing, moving, and permanent local deletion of imported events.
+- Added app-wide workout reconciliation that schedules workouts around the live calendar, moves conflicting workouts, favors available slots after EFG, JCIV, Macro, and Philosophy classes, and keeps manual workout adjustments until a real conflict occurs.
+- Added a functional Fitness calendar preview with workout sessions highlighted and Open-Meteo air-quality data in Weather details.
+
+### Changed
+
+- Removed every Google Calendar write path and write OAuth scope. Google Calendar is now a strictly read-only source; all calendar mutations stay in Jarvis.
+- Made the hourly Weather tiles responsive so the complete daily sequence fits without horizontal scrolling.
+- Added coverage for calendar overlays, all-day date spans, quarter-hour post-class workout placement, current-time scheduling bounds, and read-only Google adapter behavior.
+
+## [0.4.0.0] - 2026-11-09
+
+### Added
+
+- Connect a Google account from Settings and replace calendar preview data with live Google Calendar events.
+- Publish explicitly created Jarvis events to Google Calendar with automatic duplicate protection.
+- Refresh expired Google access automatically and disconnect by revoking Google access and removing local credentials.
+- Added tests for OAuth permissions, configuration validation, Calendar API pagination and publishing, and live calendar rendering.
+
+### Changed
+
+- Encrypt Google credentials in a secure HttpOnly cookie for the local single-user build and restrict provider writes to Jarvis-created events.
+- Validate OAuth state, account identity, callback configuration, sync windows, and event fields before sending data to Google.
+
 ## [0.3.0.0] - 2026-11-09
 
 ### Added

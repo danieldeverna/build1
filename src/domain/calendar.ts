@@ -10,6 +10,13 @@ export type CalendarEvent = {
   allDay: boolean;
   source: CalendarSource;
   location?: string;
+  notes?: string;
+  url?: string;
+  recurringEventId?: string;
+  automationId?: string;
+  automationType?: "workout";
+  canEdit?: boolean;
+  canDelete?: boolean;
   color: "blue" | "violet" | "amber" | "emerald" | "slate";
 };
 
@@ -38,9 +45,13 @@ export function positionDayEvent(
 }
 
 export function eventOccursOn(event: CalendarEvent, date: Date, timeZone = "America/New_York") {
-  const start = event.allDay
-    ? new Date(`${event.start.slice(0, 10)}T12:00:00`)
-    : toZonedTime(new Date(event.start), timeZone);
+  if (event.allDay) {
+    const start = new Date(`${event.start.slice(0, 10)}T12:00:00`);
+    const end = new Date(`${event.end.slice(0, 10)}T12:00:00`);
+    const current = new Date(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T12:00:00`);
+    return current >= start && current < end;
+  }
+  const start = toZonedTime(new Date(event.start), timeZone);
   return (
     start.getFullYear() === date.getFullYear() &&
     start.getMonth() === date.getMonth() &&

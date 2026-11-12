@@ -38,4 +38,11 @@ describe("calendar positioning", () => {
     expect(eventOccursOn(event, new Date(2026, 10, 7))).toBe(true);
     expect(eventOccursOn(event, new Date(2026, 10, 8))).toBe(false);
   });
+
+  it("matches all-day events by their date-only span", () => {
+    const allDay: CalendarEvent = { ...event, id: "all-day", start: "2026-11-07T00:00:00.000Z", end: "2026-11-09T00:00:00.000Z", allDay: true };
+    expect(eventOccursOn(allDay, new Date(2026, 10, 7))).toBe(true);
+    expect(eventOccursOn(allDay, new Date(2026, 10, 8))).toBe(true);
+    expect(eventOccursOn(allDay, new Date(2026, 10, 9))).toBe(false);
+  });
 });

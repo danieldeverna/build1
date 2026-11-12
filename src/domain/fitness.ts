@@ -12,6 +12,7 @@ export type FitnessProfile = {
   earliestStartHour: number;
   curfewHour: number;
   curfewDays: number[];
+  priorityClassTitles: string[];
 };
 
 export type ExercisePrescription = {
@@ -59,6 +60,7 @@ export const defaultFitnessProfile: FitnessProfile = {
   earliestStartHour: 10,
   curfewHour: 20,
   curfewDays: [3, 5, 6],
+  priorityClassTitles: ["EFG", "JCIV", "Macro", "Philosophy"],
 };
 
 const push60: ExercisePrescription[] = [
@@ -103,8 +105,8 @@ function overlaps(start: Date, end: Date, event: CalendarEvent) {
   return start < new Date(event.end) && end > new Date(event.start);
 }
 
-function candidateFor(day: Date, hour: number, duration: 60 | 75, profile: FitnessProfile) {
-  const reservedStart = set(day, { hours: hour, minutes: 0, seconds: 0, milliseconds: 0 });
+function candidateFor(day: Date, startMinutes: number, duration: 60 | 75, profile: FitnessProfile) {
+  const reservedStart = set(day, { hours: Math.floor(startMinutes / 60), minutes: startMinutes % 60, seconds: 0, milliseconds: 0 });
   const liftStart = addMinutes(reservedStart, profile.travelBeforeMinutes);
   const liftEnd = addMinutes(liftStart, duration);
   const reservedEnd = addMinutes(liftEnd, profile.bufferAfterMinutes);
@@ -116,16 +118,19 @@ export function scheduleFitnessWeek({
   events,
   profile = defaultFitnessProfile,
   templates = workoutTemplates,
+  notBefore,
 }: {
   weekStart: Date;
   events: CalendarEvent[];
   profile?: FitnessProfile;
   templates?: WorkoutTemplate[];
+  notBefore?: Date;
 }) {
   const scheduled: PlannedWorkout[] = [];
   const targets = [0, 2, 4, 6];
-  const hours = [16, 17, 15, 14, 18, 13, 12, 11, 10];
+  const startMinutes = [16, 17, 15, 14, 18, 13, 12, 11, 10].map((hour) => hour * 60);
   const start = startOfDay(weekStart);
+  const minimumStart = notBefore && notBefore > start ? notBefore : weekStart;
   const eligibleTemplates = templates.filter((template) => template.protected).slice(0, profile.protectedSessions);
   if (profile.optionalSession) eligibleTemplates.push(...templates.filter((template) => !template.protected).slice(0, 1));
 
@@ -138,18 +143,25 @@ export function scheduleFitnessWeek({
     for (const dayOffset of dayOffsets) {
       if (planned) break;
       const day = addDays(start, dayOffset);
-      for (const hour of hours) {
-        if (hour < profile.earliestStartHour) continue;
+      const postClassStarts = events
+        .filter((event) => !event.allDay && eventOccursOnDay(event, day) && isPriorityClass(event.title, profile.priorityClassTitles))
+        .map((event) => {
+          const end = new Date(event.end);
+          return Math.ceil((end.getHours() * 60 + end.getMinutes()) / 15) * 15;
+        })
+        .filter((minutes) => minutes >= profile.earliestStartHour * 60 && minutes <= 19 * 60);
+      for (const minutes of [...new Set([...postClassStarts, ...startMinutes])]) {
+        if (minutes < profile.earliestStartHour * 60) continue;
         for (const duration of profile.durations) {
-          const candidate = candidateFor(day, hour, duration, profile);
-          if (candidate.reservedStart < weekStart) continue;
+          const candidate = candidateFor(day, minutes, duration, profile);
+          if (candidate.reservedStart < minimumStart) continue;
           const hasConflict = events.some((event) => overlaps(candidate.reservedStart, candidate.reservedEnd, event));
           const recoveryConflict = scheduled.some((item) => Math.abs(candidate.liftStart.getTime() - new Date(item.liftStart).getTime()) < 36 * 60 * 60 * 1000);
           const curfewConflict = profile.curfewDays.includes(candidate.reservedStart.getDay()) && (candidate.reservedEnd.getHours() > profile.curfewHour || (candidate.reservedEnd.getHours() === profile.curfewHour && candidate.reservedEnd.getMinutes() > 0));
           if (hasConflict || recoveryConflict || curfewConflict) continue;
 
           planned = {
-            id: `fitness-${template.id}-${dayOffset}`,
+            id: `fitness-${template.id}-${start.toISOString().slice(0, 10)}`,
             templateId: template.id,
             title: template.title,
             focus: template.focus,
@@ -162,7 +174,7 @@ export function scheduleFitnessWeek({
             status: "scheduled",
             reason: `${duration}-minute plan fits between commitments with recovery protected.`,
             exercises: template.variants[duration],
-            calendarEventId: `jarvis-${template.id}-${candidate.reservedStart.toISOString()}`,
+            calendarEventId: `jarvis-${template.id}-${start.toISOString().slice(0, 10)}`,
           };
           break;
         }
@@ -183,6 +195,18 @@ export function plannedWorkoutToCalendarEvent(workout: PlannedWorkout): Calendar
     allDay: false,
     source: "jarvis",
     location: "University gym",
+    automationId: workout.id,
+    automationType: "workout",
     color: "emerald",
   };
+}
+
+function isPriorityClass(title: string, classTitles: string[]) {
+  const normalized = title.trim().toLocaleLowerCase();
+  return classTitles.some((classTitle) => normalized === classTitle.toLocaleLowerCase() || normalized.startsWith(`${classTitle.toLocaleLowerCase()} `));
+}
+
+function eventOccursOnDay(event: CalendarEvent, day: Date) {
+  const eventStart = new Date(event.start);
+  return eventStart.getFullYear() === day.getFullYear() && eventStart.getMonth() === day.getMonth() && eventStart.getDate() === day.getDate();
 }

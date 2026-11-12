@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Archive,
   BookOpenCheck,
   BriefcaseBusiness,
   CalendarClock,
@@ -12,11 +13,11 @@ import {
   Link2,
   Pencil,
   Plus,
-  Trash2,
   X,
 } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { archiveTaskAction, createTaskAction, setTaskCompletionAction, updateTaskAction } from "@/app/(app)/work/actions";
 import {
   filterTasks,
   incompleteTaskCounts,
@@ -53,6 +54,8 @@ export function WorkBoard({ initialTasks }: { initialTasks: Task[] }) {
   const [tab, setTab] = useState<Tab>("all");
   const [showCompleted, setShowCompleted] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | "new" | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const counts = incompleteTaskCounts(tasks);
   const visibleTasks = useMemo(
     () => filterTasks(tasks, tab).filter((task) => showCompleted || task.status === "open"),
@@ -60,33 +63,45 @@ export function WorkBoard({ initialTasks }: { initialTasks: Task[] }) {
   );
 
   function saveTask(input: TaskInput, id?: string) {
-    if (id) {
-      setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...input, dueDate: input.dueDate ?? null, priority: input.priority ?? null, estimatedMinutes: input.estimatedMinutes ?? null, notes: input.notes ?? null } : task)));
-    } else {
-      setTasks((current) => [
-        {
-          id: crypto.randomUUID(),
-          title: input.title,
-          category: input.category,
-          status: "open",
-          dueDate: input.dueDate ?? null,
-          priority: input.priority ?? null,
-          estimatedMinutes: input.estimatedMinutes ?? null,
-          notes: input.notes ?? null,
-          source: "build1",
-        },
-        ...current,
-      ]);
-    }
-    setEditingTask(null);
+    setMutationError(null);
+    startTransition(async () => {
+      const result = id ? await updateTaskAction(id, input) : await createTaskAction(input);
+      if (!result.ok || !result.task) {
+        setMutationError(result.ok ? "Jarvis did not return the saved task." : result.error);
+        return;
+      }
+      setTasks((current) => id ? current.map((task) => task.id === id ? result.task! : task) : [result.task!, ...current]);
+      setEditingTask(null);
+    });
   }
 
-  function toggleTask(id: string) {
-    setTasks((current) => current.map((task) => task.id === id ? { ...task, status: task.status === "completed" ? "open" : "completed" } : task));
+  function toggleTask(task: Task) {
+    setMutationError(null);
+    startTransition(async () => {
+      const result = await setTaskCompletionAction(task.id, task.status !== "completed");
+      if (!result.ok || !result.task) {
+        setMutationError(result.ok ? "Jarvis did not return the updated task." : result.error);
+        return;
+      }
+      setTasks((current) => current.map((candidate) => candidate.id === task.id ? result.task! : candidate));
+    });
   }
 
   function removeTask(id: string) {
-    setTasks((current) => current.filter((task) => task.id !== id));
+    setMutationError(null);
+    startTransition(async () => {
+      const result = await archiveTaskAction(id);
+      if (!result.ok) {
+        setMutationError(result.error);
+        return;
+      }
+      setTasks((current) => current.filter((task) => task.id !== id));
+    });
+  }
+
+  function beginEdit(task: Task | "new") {
+    setMutationError(null);
+    setEditingTask(task);
   }
 
   return (
@@ -120,8 +135,10 @@ export function WorkBoard({ initialTasks }: { initialTasks: Task[] }) {
               <h2 className="text-lg font-bold tracking-[-0.035em]">{tabs.find((item) => item.id === tab)?.label}</h2>
               <p className="mt-0.5 text-xs text-[var(--muted)]">{visibleTasks.length} {visibleTasks.length === 1 ? "item" : "items"}</p>
             </div>
-            <button onClick={() => setEditingTask("new")} className="focus-ring inline-flex items-center gap-2 rounded-xl bg-[var(--navy)] px-4 py-2.5 text-sm font-semibold text-white dark:bg-[var(--accent)]"><Plus size={15} /> Add task</button>
+            <button disabled={isPending} onClick={() => beginEdit("new")} className="focus-ring inline-flex items-center gap-2 rounded-xl bg-[var(--navy)] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-[var(--accent)]"><Plus size={15} /> Add task</button>
           </div>
+
+          {mutationError && <p role="alert" className="mx-5 mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">{mutationError}</p>}
 
           {tab === "academic" && (
             <div className="mx-5 mt-5 flex flex-col gap-3 rounded-xl border border-dashed bg-[var(--surface-subtle)] p-4 sm:mx-6 sm:flex-row sm:items-center">
@@ -134,7 +151,7 @@ export function WorkBoard({ initialTasks }: { initialTasks: Task[] }) {
           {visibleTasks.length ? (
             <div className="divide-y px-5 sm:px-6">
               {visibleTasks.map((task) => (
-                <TaskRow key={task.id} task={task} onToggle={() => toggleTask(task.id)} onEdit={() => setEditingTask(task)} onDelete={() => removeTask(task.id)} />
+                <TaskRow key={task.id} task={task} disabled={isPending} onToggle={() => toggleTask(task)} onEdit={() => beginEdit(task)} onDelete={() => removeTask(task.id)} />
               ))}
             </div>
           ) : (
@@ -145,17 +162,17 @@ export function WorkBoard({ initialTasks }: { initialTasks: Task[] }) {
         </section>
       </div>
 
-      {editingTask && <TaskDialog task={editingTask === "new" ? undefined : editingTask} defaultCategory={tab === "all" ? "academic" : tab} onClose={() => setEditingTask(null)} onSave={saveTask} />}
+      {editingTask && <TaskDialog task={editingTask === "new" ? undefined : editingTask} defaultCategory={tab === "all" ? "academic" : tab} pending={isPending} onClose={() => setEditingTask(null)} onSave={saveTask} />}
     </>
   );
 }
 
-function TaskRow({ task, onToggle, onEdit, onDelete }: { task: Task; onToggle: () => void; onEdit: () => void; onDelete: () => void }) {
+function TaskRow({ task, disabled, onToggle, onEdit, onDelete }: { task: Task; disabled: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void }) {
   const due = task.dueDate ? new Date(`${task.dueDate}T00:00:00`) : null;
   const overdue = due && isPast(due) && !isToday(due) && task.status === "open";
   return (
     <article className={cn("group flex items-start gap-3 py-4", task.status === "completed" && "opacity-55")}>
-      <button onClick={onToggle} className={cn("focus-ring mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2 text-white transition", task.status === "completed" ? "border-[var(--accent)] bg-[var(--accent)]" : "border-[var(--line-strong)] hover:border-[var(--accent)]")} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`}>{task.status === "completed" && <Check size={12} strokeWidth={3} />}</button>
+      <button disabled={disabled} onClick={onToggle} className={cn("focus-ring mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2 text-white transition disabled:cursor-wait", task.status === "completed" ? "border-[var(--accent)] bg-[var(--accent)]" : "border-[var(--line-strong)] hover:border-[var(--accent)]")} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`}>{task.status === "completed" && <Check size={12} strokeWidth={3} />}</button>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className={cn("text-sm font-semibold", task.status === "completed" && "line-through")}>{task.title}</h3>
@@ -169,15 +186,15 @@ function TaskRow({ task, onToggle, onEdit, onDelete }: { task: Task; onToggle: (
         </div>
       </div>
       <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-        <button onClick={onEdit} className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)]" aria-label={`Edit ${task.title}`}><Pencil size={14} /></button>
-        <button onClick={onDelete} className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950" aria-label={`Delete ${task.title}`}><Trash2 size={14} /></button>
+        <button disabled={disabled} onClick={onEdit} className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] disabled:cursor-wait" aria-label={`Edit ${task.title}`}><Pencil size={14} /></button>
+        <button disabled={disabled} onClick={onDelete} className="focus-ring grid size-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-amber-50 hover:text-amber-700 disabled:cursor-wait dark:hover:bg-amber-950" aria-label={`Archive ${task.title}`}><Archive size={14} /></button>
         <ChevronRight className="hidden text-[var(--muted-2)] sm:block" size={15} />
       </div>
     </article>
   );
 }
 
-function TaskDialog({ task, defaultCategory, onClose, onSave }: { task?: Task; defaultCategory: TaskCategory; onClose: () => void; onSave: (input: TaskInput, id?: string) => void }) {
+function TaskDialog({ task, defaultCategory, pending, onClose, onSave }: { task?: Task; defaultCategory: TaskCategory; pending: boolean; onClose: () => void; onSave: (input: TaskInput, id?: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   function submit(formData: FormData) {
     const minutes = String(formData.get("estimatedMinutes") ?? "");
@@ -196,7 +213,7 @@ function TaskDialog({ task, defaultCategory, onClose, onSave }: { task?: Task; d
     <div className="fixed inset-0 z-[70] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="task-dialog-title" className="card max-h-[90vh] w-full max-w-xl overflow-y-auto p-5 sm:p-6">
         <div className="flex items-start justify-between"><div><p className="eyebrow mb-2">{task ? "Update work" : "Capture work"}</p><h2 id="task-dialog-title" className="text-xl font-bold tracking-[-0.04em]">{task ? "Edit task" : "Add a task"}</h2><p className="mt-1 text-sm text-[var(--muted)]">Only a title and category are required.</p></div><button onClick={onClose} className="focus-ring grid size-9 place-items-center rounded-full hover:bg-[var(--surface-subtle)]" aria-label="Close"><X size={17} /></button></div>
-        <form action={submit} className="mt-6 space-y-4">
+        <form onSubmit={(event) => { event.preventDefault(); submit(new FormData(event.currentTarget)); }} className="mt-6 space-y-4">
           <label className="block text-xs font-semibold">Title<input name="title" required autoFocus defaultValue={task?.title} placeholder="What needs to get done?" className="mt-1.5 w-full rounded-xl border bg-[var(--surface)] px-3.5 py-3 text-sm" /></label>
           <label className="block text-xs font-semibold">Category<select name="category" defaultValue={task?.category ?? defaultCategory} className="mt-1.5 w-full rounded-xl border bg-[var(--surface)] px-3.5 py-3 text-sm"><option value="academic">Academic</option><option value="recruiting">Recruiting</option><option value="projects">Projects</option></select></label>
           <div className="grid gap-4 sm:grid-cols-3">
@@ -206,7 +223,7 @@ function TaskDialog({ task, defaultCategory, onClose, onSave }: { task?: Task; d
           </div>
           <label className="block text-xs font-semibold">Notes or link <span className="font-normal text-[var(--muted)]">optional</span><textarea name="notes" defaultValue={task?.notes ?? ""} rows={3} placeholder="Context, next step, or URL" className="mt-1.5 w-full resize-none rounded-xl border bg-[var(--surface)] px-3.5 py-3 text-sm" /></label>
           {error && <p role="alert" className="text-xs font-semibold text-rose-600">{error}</p>}
-          <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={onClose} className="focus-ring rounded-xl px-4 py-2.5 text-sm font-semibold text-[var(--muted)]">Cancel</button><button className="focus-ring rounded-xl bg-[var(--navy)] px-4 py-2.5 text-sm font-semibold text-white dark:bg-[var(--accent)]">{task ? "Save changes" : "Add task"}</button></div>
+          <div className="flex justify-end gap-2 pt-2"><button type="button" disabled={pending} onClick={onClose} className="focus-ring rounded-xl px-4 py-2.5 text-sm font-semibold text-[var(--muted)] disabled:cursor-wait">Cancel</button><button disabled={pending} className="focus-ring rounded-xl bg-[var(--navy)] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60 dark:bg-[var(--accent)]">{pending ? "Saving…" : task ? "Save changes" : "Add task"}</button></div>
         </form>
       </div>
     </div>

@@ -8,6 +8,13 @@
       "when": 1794209450258,
       "tag": "0000_spotty_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794346665647,
+      "tag": "0001_steep_mauler",
+      "breakpoints": true
     }
   ]
 }

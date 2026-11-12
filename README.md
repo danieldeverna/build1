@@ -7,14 +7,16 @@ A private, single-user command-center web app for schedule, academic work, recru
 - Responsive authenticated app shell and dark mode
 - Calendar-first dashboard with live current-time indicator
 - Day, week, and month calendar views
-- Local event-draft creation in preview mode
-- Work tabs with local task create, edit, complete, reopen, and delete interactions
+- Live Google Calendar connection with secure OAuth, automatic refresh, and read-only event sync
+- Read-only Gmail connection with a recent-mail preview and server-side message access for future briefings
+- Private Jarvis calendar overlays for event creation, edits, moves, and deletions
+- Persistent Work tabs with task create, edit, complete, reopen, and archive interactions plus private lifecycle logs
 - Dedicated Health, Fitness, Weather, and Settings pages
 - Google Calendar, Canvas, and Weather adapter boundaries
 - PostgreSQL schema for settings, connections, imported data, tasks, drafts, and activity logs
 - Unit, component, end-to-end, and CI foundations
 
-The current UI uses clearly labeled preview data. It does not contact Google Calendar or Canvas and cannot mutate either provider.
+Calendar preview data is replaced by live Google events after connection. Canvas remains in setup-pending preview mode.
 
 ## Local development
 
@@ -25,13 +27,31 @@ npm install
 cp .env.example .env.local
 ```
 
-For the credential-free local preview, set `APP_URL=http://localhost:3000` and `DEV_AUTH_BYPASS=true` in `.env.local`, then run. The bypass requires a loopback `APP_URL` and is restricted to localhost by the request proxy; never configure it in a deployed environment.
+For the credential-free local preview, set `APP_URL=http://localhost:3000` and `DEV_AUTH_BYPASS=true` in `.env.local`, then run. The bypass requires a loopback `APP_URL` and is restricted to localhost by the request proxy; never configure it in a deployed environment. If `DATABASE_URL` is blank in this mode, Jarvis automatically uses a private on-device database under `.jarvis/`; production still requires PostgreSQL.
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Connect Google Calendar
+
+1. In Google Cloud, enable the Google Calendar API and create an OAuth 2.0 Web application client.
+2. Add `http://localhost:3000/api/integrations/google-calendar/callback` as an authorized redirect URI.
+3. Add the client ID and secret to `GOOGLE_CALENDAR_CLIENT_ID` and `GOOGLE_CALENDAR_CLIENT_SECRET` in `.env.local`.
+4. Generate `CREDENTIAL_ENCRYPTION_KEY` with `openssl rand -base64 32` and add it to `.env.local`.
+5. Restart `npm run dev`, open Jarvis Settings, and select **Connect Google Calendar**.
+
+Jarvis requests email identity and read-only access to calendar events. Google is never modified: event creation, edits, moves, deletions, and automated workouts stay on Jarvis's private calendar layer. Existing connections should be reconnected after this update to refresh consent. Local OAuth credentials are encrypted in an HttpOnly cookie; production database persistence remains a separate deployment step.
+
+## Connect Gmail (read-only)
+
+1. In the same or a separate Google Cloud project, enable the Gmail API and create an OAuth 2.0 Web application client.
+2. Add `http://localhost:3000/api/integrations/gmail/callback` as an authorized redirect URI for local use.
+3. Set `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` in `.env.local`, restart Jarvis, then select **Connect Gmail** from Settings.
+
+Jarvis requests only Gmail's read-only scope. The integration has no routes for send, archive, trash, or delete actions; it can list message metadata and retrieve a selected message body for future private briefing features.
 
 ## Verification
 
@@ -62,7 +82,7 @@ Production requires:
 - `DATABASE_URL`
 - `CREDENTIAL_ENCRYPTION_KEY`
 
-Google Calendar and Canvas credentials are only needed when their live adapters are enabled.
+Google Calendar credentials are required for its Connect button. Canvas credentials remain optional.
 
 ## Deployment target
 
